@@ -2,16 +2,15 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 
+	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/reconciler"
-	yaml "gopkg.in/yaml.v2"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	kconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 
@@ -28,13 +27,13 @@ func main() {
 
 	flag.Parse()
 
-	buf, err := ioutil.ReadFile(*configPath)
+	c, err := config.LoadFile(*configPath)
 	if err != nil {
 		log.Error(err, "could not load configuration file")
 		os.Exit(1)
 	}
 
-	kc, err := config.GetConfig()
+	kc, err := kconfig.GetConfig()
 	if err != nil {
 		log.Error(err, "cloud not load kubernetes configuration")
 		os.Exit(1)
@@ -46,14 +45,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	c := &reconciler.Config{}
-	err = yaml.Unmarshal(buf, c)
-	if err != nil {
-		log.Error(err, "failed to parse configuration file")
-		os.Exit(1)
-	}
-
-	reconciler, err := reconciler.NewReconciler(c, kc)
+	reconciler, err := reconciler.NewReconciler(c)
 	if err != nil {
 		log.Error(err, "could not create reconciler")
 		os.Exit(1)
