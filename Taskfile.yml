@@ -1,0 +1,21 @@
+version: '2'
+
+vars:
+  NAME: whitebox-controller
+  VERSION: 0.1.0
+  COMMIT: {sh: git rev-parse --verify HEAD}
+  BUILD_FLAGS: -ldflags "-X main.VERSION={{.VERSION}} -X main.COMMIT={{.COMMIT}}"
+
+tasks:
+  build:
+    deps: [test]
+    cmds:
+      - CGO_ENABLED=0 go build {{.BUILD_FLAGS}} .
+  test:
+    cmds:
+      - go vet ./...
+      - go test -v -coverprofile=cover.out ./...
+  cover:
+    deps: [test]
+    cmds:
+      - go tool cover -html=cover.out
