@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -88,11 +89,19 @@ type ExecHandlerConfig struct {
 	Args       []string          `json:"args"`
 	WorkingDir string            `json:"workingDir"`
 	Env        map[string]string `json:"env"`
+	Timeout    string            `json:"timeout"`
 }
 
 func (ehc ExecHandlerConfig) Validate() error {
 	if ehc.Command == "" {
 		return errors.New("command must be specified")
+	}
+
+	if ehc.Timeout != "" {
+		_, err := time.ParseDuration(ehc.Timeout)
+		if err != nil {
+			return fmt.Errorf("timeout is not valid: %v", err)
+		}
 	}
 
 	return nil

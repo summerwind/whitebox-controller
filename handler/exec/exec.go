@@ -2,22 +2,32 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/handler"
 )
 
 type ExecHandler struct {
-	config *config.ExecHandlerConfig
-	env    []string
+	command    string
+	args       []string
+	env        []string
+	workingDir string
+	timeout    time.Duration
 }
 
-func NewHandler(hc *config.ExecHandlerConfig) *ExecHandler {
+func NewHandler(hc *config.ExecHandlerConfig) (*ExecHandler, error) {
+	args := []string{}
+	if hc.Args != nil {
+		args = append(args, hc.Args...)
+	}
+
 	env := []string{}
 	if hc.Env != nil {
 		for key, val := range hc.Env {
@@ -25,10 +35,22 @@ func NewHandler(hc *config.ExecHandlerConfig) *ExecHandler {
 		}
 	}
 
-	return &ExecHandler{
-		config: hc,
-		env:    env,
+	timeout := 60 * time.Second
+	if hc.Timeout != "" {
+		var err error
+		timeout, err = time.ParseDuration(hc.Timeout)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	return &ExecHandler{
+		command:    hc.Command,
+		args:       args,
+		env:        env,
+		workingDir: hc.WorkingDir,
+		timeout:    timeout,
+	}, nil
 }
 
 func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
@@ -37,16 +59,13 @@ func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
 		return nil, err
 	}
 
-	if h.config.Args == nil {
-		h.config.Args = []string{}
-	}
+	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	defer cancel()
 
-	cmd := exec.Command(h.config.Command, h.config.Args...)
+	cmd := exec.CommandContext(ctx, h.command, h.args...)
 	cmd.Stdin = bytes.NewReader(buf)
 	cmd.Env = append(os.Environ(), h.env...)
-	if h.config.WorkingDir != "" {
-		cmd.Dir = h.config.WorkingDir
-	}
+	cmd.Dir = h.workingDir
 
 	out, err := cmd.Output()
 	if err != nil {

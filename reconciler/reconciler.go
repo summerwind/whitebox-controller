@@ -71,7 +71,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, nil
 	}
 
-	phaseHandler := exec.NewHandler(handlerConfig.Exec)
+	phaseHandler, err := exec.NewHandler(handlerConfig.Exec)
+	if err != nil {
+		r.log.Error(err, "Failed to create a handler", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
+	}
+
 	hreq := &handler.Request{Resource: instance}
 	hres, err := phaseHandler.Run(hreq)
 	if err != nil {
