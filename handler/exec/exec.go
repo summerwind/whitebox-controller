@@ -3,6 +3,7 @@ package exec
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ func NewHandler(hc *config.ExecHandlerConfig) *ExecHandler {
 			env = append(env, fmt.Sprintf("%s=%s", key, val))
 		}
 	}
+
 	return &ExecHandler{
 		config: hc,
 		env:    env,
@@ -40,12 +42,19 @@ func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
 	}
 
 	cmd := exec.Command(h.config.Command, h.config.Args...)
-	cmd.Env = append(os.Environ(), h.env...)
 	cmd.Stdin = bytes.NewReader(buf)
+	cmd.Env = append(os.Environ(), h.env...)
+	if h.config.WorkingDir != "" {
+		cmd.Dir = h.config.WorkingDir
+	}
 
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
+	}
+
+	if len(out) == 0 {
+		return nil, errors.New("empty command output")
 	}
 
 	res := &handler.Response{}
