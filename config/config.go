@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"gopkg.in/yaml.v2"
+	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
