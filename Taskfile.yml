@@ -10,12 +10,16 @@ tasks:
   build:
     deps: [test]
     cmds:
-      - CGO_ENABLED=0 go build {{.BUILD_FLAGS}} .
+    - CGO_ENABLED=0 go build {{.BUILD_FLAGS}} .
   test:
     cmds:
-      - go vet ./...
-      - go test -v -coverprofile=cover.out ./...
+    - go vet ./...
+    - go test -v -coverprofile=cover.out ./...
   cover:
     deps: [test]
     cmds:
-      - go tool cover -html=cover.out
+    - go tool cover -html=cover.out
+  build-container:
+    deps: [test]
+    cmds:
+    - docker build -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
