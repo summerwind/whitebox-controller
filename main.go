@@ -6,10 +6,12 @@ import (
 
 	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/reconciler"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	kconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
@@ -35,7 +37,7 @@ func main() {
 
 	kc, err := kconfig.GetConfig()
 	if err != nil {
-		log.Error(err, "cloud not load kubernetes configuration")
+		log.Error(err, "could not load kubernetes configuration")
 		os.Exit(1)
 	}
 
@@ -54,9 +56,15 @@ func main() {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(c.Resource)
 
-	err = builder.ControllerManagedBy(mgr).For(obj).Complete(reconciler)
+	ctrl, err := controller.New("controller", mgr, controller.Options{Reconciler: reconciler})
 	if err != nil {
 		log.Error(err, "could not create controller")
+		os.Exit(1)
+	}
+
+	err = ctrl.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForObject{})
+	if err != nil {
+		log.Error(err, "failed to watch resource")
 		os.Exit(1)
 	}
 
