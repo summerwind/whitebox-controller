@@ -13,21 +13,23 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-const (
-	LabelHandlerID       = "whitebox.summerwind.github.io/hanlderID"
-	HandlerContainerName = "handler"
-)
-
 type Reconciler struct {
 	client.Client
-	config *config.Config
-	log    logr.Logger
+	config  *config.Config
+	handler handler.Handler
+	log     logr.Logger
 }
 
 func NewReconciler(config *config.Config) (*Reconciler, error) {
+	h, err := exec.NewHandler(config.Reconciler.Exec)
+	if err != nil {
+		return nil, err
+	}
+
 	r := &Reconciler{
-		config: config,
-		log:    logf.Log.WithName("reconciler"),
+		config:  config,
+		handler: h,
+		log:     logf.Log.WithName("reconciler"),
 	}
 
 	return r, nil
@@ -39,11 +41,6 @@ func (r *Reconciler) InjectClient(c client.Client) error {
 }
 
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	var (
-		phase string
-		ok    bool
-	)
-
 	namespace := req.NamespacedName.Namespace
 	name := req.NamespacedName.Name
 
@@ -56,31 +53,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	status, ok := instance.Object["status"].(map[string]interface{})
-	if ok {
-		phase, _ = status["phase"].(string)
-	}
-
-	if phase == "" {
-		phase = "new"
-	}
-
-	handlerConfig, ok := r.config.Handlers[phase]
-	if !ok {
-		r.log.Info("No handler for the phase", "namespace", namespace, "name", name, "phase", phase)
-		return reconcile.Result{}, nil
-	}
-
-	phaseHandler, err := exec.NewHandler(handlerConfig.Exec)
-	if err != nil {
-		r.log.Error(err, "Failed to create a handler", "namespace", namespace, "name", name)
-		return reconcile.Result{}, err
-	}
-
 	hreq := &handler.Request{Resource: instance}
-	hres, err := phaseHandler.Run(hreq)
+	hres, err := r.handler.Run(hreq)
 	if err != nil {
-		r.log.Error(err, "Handler error", "namespace", namespace, "name", name, "phase", phase)
+		r.log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
@@ -93,7 +69,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	r.log.Info("Resource updated", "namespace", namespace, "name", name, "phase", phase)
+	r.log.Info("Resource updated", "namespace", namespace, "name", name)
 
 	return reconcile.Result{}, nil
 }

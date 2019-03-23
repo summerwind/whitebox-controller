@@ -19,7 +19,7 @@ const (
 type Config struct {
 	Resource           schema.GroupVersionKind   `json:"resource"`
 	DependentResources []schema.GroupVersionKind `json:"dependentResources"`
-	Handlers           map[string]HandlerConfig  `json:"handlers"`
+	Reconciler         HandlerConfig             `json:"reconciler"`
 }
 
 func LoadFile(p string) (*Config, error) {
@@ -30,7 +30,7 @@ func LoadFile(p string) (*Config, error) {
 
 	c := &Config{
 		DependentResources: []schema.GroupVersionKind{},
-		Handlers:           map[string]HandlerConfig{},
+		Reconciler:         HandlerConfig{},
 	}
 
 	err = yaml.Unmarshal(buf, c)
@@ -57,11 +57,9 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	for key, h := range c.Handlers {
-		err := h.Validate()
-		if err != nil {
-			return fmt.Errorf("handlers[%s]: %v", key, err)
-		}
+	err := c.Reconciler.Validate()
+	if err != nil {
+		return fmt.Errorf("reconciler: %v", err)
 	}
 
 	return nil

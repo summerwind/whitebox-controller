@@ -1,6 +1,8 @@
 package handler
 
-import "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+import (
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+)
 
 type Request struct {
 	Resource       *unstructured.Unstructured   `json:"resource"`
@@ -19,3 +21,7 @@ const (
 	ResponseStatusFailure ResponseStatus = "failure"
 	ResponseStatusError   ResponseStatus = "error"
 )
+
+type Handler interface {
+	Run(req *Request) (*Response, error)
+}
