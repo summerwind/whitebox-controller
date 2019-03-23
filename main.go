@@ -4,21 +4,22 @@ import (
 	"flag"
 	"os"
 
-	"github.com/summerwind/whitebox-controller/config"
-	"github.com/summerwind/whitebox-controller/reconciler"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	kconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
+
+	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/reconciler"
+	"github.com/summerwind/whitebox-controller/syncer"
 )
 
 func main() {
@@ -66,6 +67,20 @@ func main() {
 	if err != nil {
 		log.Error(err, "failed to watch resource")
 		os.Exit(1)
+	}
+
+	if c.Syncer.Interval != "" {
+		s, err := syncer.New(c, mgr)
+		if err != nil {
+			log.Error(err, "could not create syncer")
+			os.Exit(1)
+		}
+
+		err = ctrl.Watch(&source.Channel{Source: s.C}, &handler.EnqueueRequestForObject{})
+		if err != nil {
+			log.Error(err, "failed to watch sync channel")
+			os.Exit(1)
+		}
 	}
 
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {

@@ -20,6 +20,7 @@ type Config struct {
 	Resource           schema.GroupVersionKind   `json:"resource"`
 	DependentResources []schema.GroupVersionKind `json:"dependentResources"`
 	Reconciler         HandlerConfig             `json:"reconciler"`
+	Syncer             SyncerConfig              `json:"syncer"`
 }
 
 func LoadFile(p string) (*Config, error) {
@@ -62,6 +63,11 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("reconciler: %v", err)
 	}
 
+	err = c.Syncer.Validate()
+	if err != nil {
+		return fmt.Errorf("syncer: %v", err)
+	}
+
 	return nil
 }
 
@@ -98,7 +104,22 @@ func (ehc ExecHandlerConfig) Validate() error {
 	if ehc.Timeout != "" {
 		_, err := time.ParseDuration(ehc.Timeout)
 		if err != nil {
-			return fmt.Errorf("timeout is not valid: %v", err)
+			return fmt.Errorf("invalid timeout: %v", err)
+		}
+	}
+
+	return nil
+}
+
+type SyncerConfig struct {
+	Interval string `json:"interval"`
+}
+
+func (sc SyncerConfig) Validate() error {
+	if sc.Interval != "" {
+		_, err := time.ParseDuration(sc.Interval)
+		if err != nil {
+			return fmt.Errorf("invalid interval: %v", err)
 		}
 	}
 
