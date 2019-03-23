@@ -5,13 +5,15 @@ import (
 	"reflect"
 
 	"github.com/go-logr/logr"
-	"github.com/summerwind/whitebox-controller/config"
-	"github.com/summerwind/whitebox-controller/handler"
-	"github.com/summerwind/whitebox-controller/handler/exec"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+
+	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/handler"
+	"github.com/summerwind/whitebox-controller/handler/exec"
 )
 
 type Reconciler struct {
@@ -50,6 +52,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return reconcile.Result{}, nil
+		}
 		r.log.Error(err, "Failed to get a resource", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
