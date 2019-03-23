@@ -54,6 +54,8 @@ func NewHandler(hc *config.ExecHandlerConfig) (*ExecHandler, error) {
 }
 
 func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
+	var stderr bytes.Buffer
+
 	buf, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -64,11 +66,16 @@ func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
 
 	cmd := exec.CommandContext(ctx, h.command, h.args...)
 	cmd.Stdin = bytes.NewReader(buf)
+	cmd.Stderr = &stderr
 	cmd.Env = append(os.Environ(), h.env...)
 	cmd.Dir = h.workingDir
 
 	out, err := cmd.Output()
 	if err != nil {
+		ee, ok := err.(*exec.ExitError)
+		if ok {
+			return nil, fmt.Errorf("%s: %s", err, string(ee.Stderr))
+		}
 		return nil, err
 	}
 
@@ -79,7 +86,7 @@ func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
 	res := &handler.Response{}
 	err = json.Unmarshal(out, res)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid command output: %v", err)
 	}
 
 	return res, nil
