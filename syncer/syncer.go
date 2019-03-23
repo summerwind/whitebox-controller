@@ -18,12 +18,12 @@ import (
 type Syncer struct {
 	client.Client
 	C        chan event.GenericEvent
-	config   *config.Config
+	config   *config.ControllerConfig
 	interval time.Duration
 	log      logr.Logger
 }
 
-func New(c *config.Config, mgr manager.Manager) (*Syncer, error) {
+func New(c *config.ControllerConfig, mgr manager.Manager) (*Syncer, error) {
 	interval, err := time.ParseDuration(c.Syncer.Interval)
 	if err != nil {
 		return nil, err

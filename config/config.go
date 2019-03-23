@@ -17,10 +17,7 @@ const (
 )
 
 type Config struct {
-	Resource           schema.GroupVersionKind   `json:"resource"`
-	DependentResources []schema.GroupVersionKind `json:"dependentResources"`
-	Reconciler         HandlerConfig             `json:"reconciler"`
-	Syncer             SyncerConfig              `json:"syncer"`
+	Controllers []ControllerConfig `json:"controllers"`
 }
 
 func LoadFile(p string) (*Config, error) {
@@ -29,11 +26,7 @@ func LoadFile(p string) (*Config, error) {
 		return nil, err
 	}
 
-	c := &Config{
-		DependentResources: []schema.GroupVersionKind{},
-		Reconciler:         HandlerConfig{},
-	}
-
+	c := &Config{}
 	err = yaml.Unmarshal(buf, c)
 	if err != nil {
 		return nil, err
@@ -48,22 +41,45 @@ func LoadFile(p string) (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if c.Resource.Empty() {
+	for i, controller := range c.Controllers {
+		err := controller.Validate()
+		if err != nil {
+			return fmt.Errorf("controller[%d]: %v", i, err)
+		}
+	}
+
+	return nil
+}
+
+type ControllerConfig struct {
+	Name               string
+	Resource           schema.GroupVersionKind   `json:"resource"`
+	DependentResources []schema.GroupVersionKind `json:"dependentResources"`
+	Reconciler         HandlerConfig             `json:"reconciler"`
+	Syncer             SyncerConfig              `json:"syncer"`
+}
+
+func (cc *ControllerConfig) Validate() error {
+	if cc.Name == "" {
+		return errors.New("name must be specified")
+	}
+
+	if cc.Resource.Empty() {
 		return errors.New("resource is empty")
 	}
 
-	for i, dep := range c.DependentResources {
+	for i, dep := range cc.DependentResources {
 		if dep.Empty() {
 			return fmt.Errorf("dependentResource[%d] is empty", i)
 		}
 	}
 
-	err := c.Reconciler.Validate()
+	err := cc.Reconciler.Validate()
 	if err != nil {
 		return fmt.Errorf("reconciler: %v", err)
 	}
 
-	err = c.Syncer.Validate()
+	err = cc.Syncer.Validate()
 	if err != nil {
 		return fmt.Errorf("syncer: %v", err)
 	}

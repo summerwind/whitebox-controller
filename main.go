@@ -48,38 +48,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	reconciler, err := reconciler.NewReconciler(c)
-	if err != nil {
-		log.Error(err, "could not create reconciler")
-		os.Exit(1)
-	}
+	for i, _ := range c.Controllers {
+		cc := c.Controllers[i]
 
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(c.Resource)
-
-	ctrl, err := controller.New("controller", mgr, controller.Options{Reconciler: reconciler})
-	if err != nil {
-		log.Error(err, "could not create controller")
-		os.Exit(1)
-	}
-
-	err = ctrl.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		log.Error(err, "failed to watch resource")
-		os.Exit(1)
-	}
-
-	if c.Syncer.Interval != "" {
-		s, err := syncer.New(c, mgr)
+		reconciler, err := reconciler.NewReconciler(&cc)
 		if err != nil {
-			log.Error(err, "could not create syncer")
+			log.Error(err, "could not create reconciler")
 			os.Exit(1)
 		}
 
-		err = ctrl.Watch(&source.Channel{Source: s.C}, &handler.EnqueueRequestForObject{})
+		ctrl, err := controller.New(cc.Name, mgr, controller.Options{Reconciler: reconciler})
 		if err != nil {
-			log.Error(err, "failed to watch sync channel")
+			log.Error(err, "could not create controller")
 			os.Exit(1)
+		}
+
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(cc.Resource)
+
+		err = ctrl.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForObject{})
+		if err != nil {
+			log.Error(err, "failed to watch resource")
+			os.Exit(1)
+		}
+
+		if c.Controllers[i].Syncer.Interval != "" {
+			s, err := syncer.New(&cc, mgr)
+			if err != nil {
+				log.Error(err, "could not create syncer")
+				os.Exit(1)
+			}
+
+			err = ctrl.Watch(&source.Channel{Source: s.C}, &handler.EnqueueRequestForObject{})
+			if err != nil {
+				log.Error(err, "failed to watch sync channel")
+				os.Exit(1)
+			}
 		}
 	}
 

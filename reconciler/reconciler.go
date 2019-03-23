@@ -18,12 +18,12 @@ import (
 
 type Reconciler struct {
 	client.Client
-	config  *config.Config
+	config  *config.ControllerConfig
 	handler handler.Handler
 	log     logr.Logger
 }
 
-func NewReconciler(config *config.Config) (*Reconciler, error) {
+func NewReconciler(config *config.ControllerConfig) (*Reconciler, error) {
 	h, err := exec.NewHandler(config.Reconciler.Exec)
 	if err != nil {
 		return nil, err
