@@ -2,6 +2,7 @@ package reconciler
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/go-logr/logr"
 	"github.com/summerwind/whitebox-controller/config"
@@ -63,13 +64,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	next := hres.Resource
 	next.SetGroupVersionKind(r.config.Resource)
 
-	err = r.Update(context.TODO(), next)
-	if err != nil {
-		r.log.Error(err, "Failed to update a resource", "namespace", namespace, "name", name)
-		return reconcile.Result{}, err
-	}
+	if !reflect.DeepEqual(instance, next) {
+		err = r.Update(context.TODO(), next)
+		if err != nil {
+			r.log.Error(err, "Failed to update a resource", "namespace", namespace, "name", name)
+			return reconcile.Result{}, err
+		}
 
-	r.log.Info("Resource updated", "namespace", namespace, "name", name)
+		r.log.Info("Resource updated", "namespace", namespace, "name", name)
+	}
 
 	return reconcile.Result{}, nil
 }
