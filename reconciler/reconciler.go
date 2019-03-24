@@ -59,18 +59,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	hreq := &handler.Request{Resource: instance}
-	hres, err := r.handler.Run(hreq)
+	state := handler.NewState(handler.ActionReconcile, instance)
+	newState, err := r.handler.Run(state)
 	if err != nil {
 		r.log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
-	next := hres.Resource
-	next.SetGroupVersionKind(r.config.Resource)
+	resource := newState.Resource
+	resource.SetGroupVersionKind(r.config.Resource)
 
-	if !reflect.DeepEqual(instance, next) {
-		err = r.Update(context.TODO(), next)
+	if !reflect.DeepEqual(instance, resource) {
+		err = r.Update(context.TODO(), resource)
 		if err != nil {
 			r.log.Error(err, "Failed to update a resource", "namespace", namespace, "name", name)
 			return reconcile.Result{}, err

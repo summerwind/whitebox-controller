@@ -53,7 +53,7 @@ func NewHandler(hc *config.ExecHandlerConfig) (*ExecHandler, error) {
 	}, nil
 }
 
-func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
+func (h *ExecHandler) Run(req *handler.State) (*handler.State, error) {
 	var stderr bytes.Buffer
 
 	buf, err := json.Marshal(req)
@@ -83,7 +83,7 @@ func (h *ExecHandler) Run(req *handler.Request) (*handler.Response, error) {
 		return nil, errors.New("empty command output")
 	}
 
-	res := &handler.Response{}
+	res := &handler.State{}
 	err = json.Unmarshal(out, res)
 	if err != nil {
 		return nil, fmt.Errorf("invalid command output: %v", err)

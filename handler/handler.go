@@ -4,24 +4,22 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-type Request struct {
-	Resource       *unstructured.Unstructured   `json:"resource"`
-	OwnedResources []*unstructured.Unstructured `json:"ownedResources"`
-}
-
-type Response struct {
-	Resource       *unstructured.Unstructured   `json:"resource"`
-	OwnedResources []*unstructured.Unstructured `json:"ownedResources"`
-}
-
-type ResponseStatus string
-
 const (
-	ResponseStatusSuccess ResponseStatus = "success"
-	ResponseStatusFailure ResponseStatus = "failure"
-	ResponseStatusError   ResponseStatus = "error"
+	ActionReconcile = "reconcile"
 )
 
+type State struct {
+	Action   string                     `json:"action"`
+	Resource *unstructured.Unstructured `json:"resource"`
+}
+
+func NewState(action string, resource *unstructured.Unstructured) *State {
+	return &State{
+		Action:   action,
+		Resource: resource,
+	}
+}
+
 type Handler interface {
-	Run(req *Request) (*Response, error)
+	Run(req *State) (*State, error)
 }
