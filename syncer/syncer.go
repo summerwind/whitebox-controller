@@ -48,11 +48,11 @@ func (s *Syncer) Start(stop <-chan struct{}) error {
 		case <-t.C:
 			err := s.Sync()
 			if err != nil {
-				s.log.Error(err, "Sync error")
+				s.log.Error(err, "Sync error", "syncer", s.config.Name)
 			}
-			s.log.Info("Synced")
+			s.log.Info("Synced", "syncer", s.config.Name)
 		case <-stop:
-			s.log.Info("Stopping syncer")
+			s.log.Info("Stopping syncer", "syncer", s.config.Name)
 			return nil
 		}
 	}
