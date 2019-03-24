@@ -2,6 +2,8 @@ package reconciler
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -98,6 +100,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
+	err = r.validateState(state, newState)
+	if err != nil {
+		r.log.Error(err, "Ignored due to the new state is invalid", "namespace", namespace, "name", name)
+		return reconcile.Result{}, nil
+	}
+
 	created, updated, deleted := state.Diff(newState)
 
 	for _, res := range created {
@@ -136,4 +144,46 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) validateState(current, new *handler.State) error {
+	if new.Resource != nil {
+		namespace := new.Resource.GetNamespace()
+
+		if !reflect.DeepEqual(new.Resource.GroupVersionKind(), r.config.Resource) {
+			return errors.New("resource: group/version/kind does not match")
+		}
+		if namespace != current.Resource.GetNamespace() {
+			return errors.New("resource: namespace does not match")
+		}
+		if new.Resource.GetName() != current.Resource.GetName() {
+			return errors.New("resource: name does not match")
+		}
+
+		for i, dep := range new.Dependents {
+			if dep.GetNamespace() != namespace {
+				return fmt.Errorf("dependents[%d]: namespace does not match", i)
+			}
+		}
+	}
+
+	for i, dep := range new.Dependents {
+		if len(r.config.Dependents) == 0 {
+			return errors.New("no dependents specified in the configuration")
+		}
+
+		matched := false
+		for _, gvk := range r.config.Dependents {
+			if reflect.DeepEqual(dep.GroupVersionKind(), gvk) {
+				matched = true
+				break
+			}
+		}
+
+		if !matched {
+			return fmt.Errorf("dependents[%d]: unexpected group/version/kind", i)
+		}
+	}
+
+	return nil
 }
