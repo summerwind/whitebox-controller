@@ -66,6 +66,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
+	if newState.Resource == nil {
+		err = r.Delete(context.TODO(), instance)
+		if err != nil {
+			r.log.Error(err, "Failed to delete a resource", "namespace", namespace, "name", name)
+			return reconcile.Result{}, err
+		}
+
+		r.log.Info("Resource deleted", "namespace", namespace, "name", name)
+		return reconcile.Result{}, nil
+	}
+
 	resource := newState.Resource
 	resource.SetGroupVersionKind(r.config.Resource)
 
