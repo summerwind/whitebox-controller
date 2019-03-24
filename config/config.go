@@ -52,11 +52,11 @@ func (c *Config) Validate() error {
 }
 
 type ControllerConfig struct {
-	Name               string
-	Resource           schema.GroupVersionKind   `json:"resource"`
-	DependentResources []schema.GroupVersionKind `json:"dependentResources"`
-	Reconciler         HandlerConfig             `json:"reconciler"`
-	Syncer             SyncerConfig              `json:"syncer"`
+	Name       string
+	Resource   schema.GroupVersionKind   `json:"resource"`
+	Dependents []schema.GroupVersionKind `json:"dependents"`
+	Reconciler HandlerConfig             `json:"reconciler"`
+	Syncer     SyncerConfig              `json:"syncer"`
 }
 
 func (cc *ControllerConfig) Validate() error {
@@ -68,9 +68,9 @@ func (cc *ControllerConfig) Validate() error {
 		return errors.New("resource is empty")
 	}
 
-	for i, dep := range cc.DependentResources {
+	for i, dep := range cc.Dependents {
 		if dep.Empty() {
-			return fmt.Errorf("dependentResource[%d] is empty", i)
+			return fmt.Errorf("dependents[%d] is empty", i)
 		}
 	}
 

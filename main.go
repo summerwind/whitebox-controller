@@ -72,6 +72,20 @@ func main() {
 			os.Exit(1)
 		}
 
+		for _, dep := range cc.Dependents {
+			depObj := &unstructured.Unstructured{}
+			depObj.SetGroupVersionKind(dep)
+
+			err = ctrl.Watch(&source.Kind{Type: depObj}, &handler.EnqueueRequestForOwner{
+				IsController: true,
+				OwnerType:    obj,
+			})
+			if err != nil {
+				log.Error(err, "failed to watch dependent resource")
+				os.Exit(1)
+			}
+		}
+
 		if c.Controllers[i].Syncer.Interval != "" {
 			s, err := syncer.New(&cc, mgr)
 			if err != nil {

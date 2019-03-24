@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -44,8 +45,8 @@ func (r *Reconciler) InjectClient(c client.Client) error {
 }
 
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
-	namespace := req.NamespacedName.Namespace
-	name := req.NamespacedName.Name
+	namespace := req.Namespace
+	name := req.Name
 
 	instance := &unstructured.Unstructured{}
 	instance.SetGroupVersionKind(r.config.Resource)
@@ -59,35 +60,79 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
+	enabled := true
+	instanceRef := metav1.OwnerReference{
+		APIVersion:         instance.GetAPIVersion(),
+		Kind:               instance.GetKind(),
+		Name:               instance.GetName(),
+		UID:                instance.GetUID(),
+		Controller:         &enabled,
+		BlockOwnerDeletion: &enabled,
+	}
 	state := handler.NewState(handler.ActionReconcile, instance)
+
+	for _, dep := range r.config.Dependents {
+		dependentList := &unstructured.UnstructuredList{}
+		dependentList.SetGroupVersionKind(dep)
+
+		err := r.List(context.TODO(), &client.ListOptions{Namespace: namespace}, dependentList)
+		if err != nil {
+			r.log.Error(err, "Failed to get a list for dependent resource", "namespace", namespace, "name", name)
+			return reconcile.Result{}, err
+		}
+
+		for _, item := range dependentList.Items {
+			ownerRefs := item.GetOwnerReferences()
+			for _, ownerRef := range ownerRefs {
+				if !reflect.DeepEqual(ownerRef, instanceRef) {
+					continue
+				}
+				state.Dependents = append(state.Dependents, item)
+			}
+		}
+	}
+
 	newState, err := r.handler.Run(state)
 	if err != nil {
 		r.log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
-	if newState.Resource == nil {
-		err = r.Delete(context.TODO(), instance)
+	created, updated, deleted := state.Diff(newState)
+
+	for _, res := range created {
+		res.SetOwnerReferences([]metav1.OwnerReference{instanceRef})
+		err = r.Create(context.TODO(), &res)
 		if err != nil {
-			r.log.Error(err, "Failed to delete a resource", "namespace", namespace, "name", name)
+			r.log.Error(err, "Failed to create a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
 
-		r.log.Info("Resource deleted", "namespace", namespace, "name", name)
-		return reconcile.Result{}, nil
+		r.log.Info("Resource created", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
-	resource := newState.Resource
-	resource.SetGroupVersionKind(r.config.Resource)
+	for _, res := range updated {
+		if res.GetSelfLink() != instance.GetSelfLink() {
+			res.SetOwnerReferences([]metav1.OwnerReference{instanceRef})
+		}
 
-	if !reflect.DeepEqual(instance, resource) {
-		err = r.Update(context.TODO(), resource)
+		err = r.Update(context.TODO(), &res)
 		if err != nil {
-			r.log.Error(err, "Failed to update a resource", "namespace", namespace, "name", name)
+			r.log.Error(err, "Failed to update a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
 
-		r.log.Info("Resource updated", "namespace", namespace, "name", name)
+		r.log.Info("Resource updated", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
+	}
+
+	for _, res := range deleted {
+		err = r.Delete(context.TODO(), &res)
+		if err != nil {
+			r.log.Error(err, "Failed to delete a resource", "namespace", res.GetNamespace(), "name", res.GetName())
+			return reconcile.Result{}, err
+		}
+
+		r.log.Info("Resource deleted", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
 	return reconcile.Result{}, nil
