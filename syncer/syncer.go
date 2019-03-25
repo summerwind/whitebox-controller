@@ -62,7 +62,7 @@ func (s *Syncer) Sync() error {
 	instanceList := &unstructured.UnstructuredList{}
 	instanceList.SetGroupVersionKind(s.config.Resource)
 
-	err := s.List(context.TODO(), &client.ListOptions{}, instanceList)
+	err := s.List(context.TODO(), instanceList)
 	if err != nil {
 		return err
 	}

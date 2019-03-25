@@ -77,7 +77,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		dependentList := &unstructured.UnstructuredList{}
 		dependentList.SetGroupVersionKind(dep)
 
-		err := r.List(context.TODO(), &client.ListOptions{Namespace: namespace}, dependentList)
+		err := r.List(context.TODO(), dependentList, client.InNamespace(namespace))
 		if err != nil {
 			r.log.Error(err, "Failed to get a list for dependent resource", "namespace", namespace, "name", name)
 			return reconcile.Result{}, err
