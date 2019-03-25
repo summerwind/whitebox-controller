@@ -3,7 +3,6 @@ package exec
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,7 +10,6 @@ import (
 	"time"
 
 	"github.com/summerwind/whitebox-controller/config"
-	"github.com/summerwind/whitebox-controller/handler"
 )
 
 type ExecHandler struct {
@@ -53,13 +51,8 @@ func NewHandler(hc *config.ExecHandlerConfig) (*ExecHandler, error) {
 	}, nil
 }
 
-func (h *ExecHandler) Run(req *handler.State) (*handler.State, error) {
+func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
 	var stderr bytes.Buffer
-
-	buf, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
 	defer cancel()
@@ -83,11 +76,5 @@ func (h *ExecHandler) Run(req *handler.State) (*handler.State, error) {
 		return nil, errors.New("empty command output")
 	}
 
-	res := &handler.State{}
-	err = json.Unmarshal(out, res)
-	if err != nil {
-		return nil, fmt.Errorf("invalid command output: %v", err)
-	}
-
-	return res, nil
+	return out, nil
 }

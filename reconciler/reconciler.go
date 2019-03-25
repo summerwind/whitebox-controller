@@ -2,6 +2,7 @@ package reconciler
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -71,8 +72,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		Controller:         &enabled,
 		BlockOwnerDeletion: &enabled,
 	}
-	state := handler.NewState(handler.ActionReconcile, instance)
 
+	dependents := []unstructured.Unstructured{}
 	for _, dep := range r.config.Dependents {
 		dependentList := &unstructured.UnstructuredList{}
 		dependentList.SetGroupVersionKind(dep)
@@ -89,14 +90,28 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 				if !reflect.DeepEqual(ownerRef, instanceRef) {
 					continue
 				}
-				state.Dependents = append(state.Dependents, item)
+				dependents = append(dependents, item)
 			}
 		}
 	}
 
-	newState, err := r.handler.Run(state)
+	state := NewState(instance, dependents)
+	buf, err := json.Marshal(state)
+	if err != nil {
+		r.log.Error(err, "Failed to encode state", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
+	}
+
+	out, err := r.handler.Run(buf)
 	if err != nil {
 		r.log.Error(err, "Handler error", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
+	}
+
+	newState := &State{}
+	err = json.Unmarshal(out, newState)
+	if err != nil {
+		r.log.Error(err, "Failed to decode new state", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
@@ -146,7 +161,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) validateState(current, new *handler.State) error {
+func (r *Reconciler) validateState(current, new *State) error {
 	if new.Resource != nil {
 		namespace := new.Resource.GetNamespace()
 
