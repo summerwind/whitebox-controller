@@ -20,6 +20,7 @@ import (
 	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/reconciler"
 	"github.com/summerwind/whitebox-controller/syncer"
+	"github.com/summerwind/whitebox-controller/webhook"
 )
 
 func main() {
@@ -98,6 +99,14 @@ func main() {
 				log.Error(err, "failed to watch sync channel")
 				os.Exit(1)
 			}
+		}
+	}
+
+	if len(c.Webhook.Handlers) > 0 {
+		_, err := webhook.NewServer(&c.Webhook, mgr)
+		if err != nil {
+			log.Error(err, "could not create webhook server")
+			os.Exit(1)
 		}
 	}
 

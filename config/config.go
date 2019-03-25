@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -18,6 +19,7 @@ const (
 
 type Config struct {
 	Controllers []ControllerConfig `json:"controllers"`
+	Webhook     WebhookConfig      `json:"webhook"`
 }
 
 func LoadFile(p string) (*Config, error) {
@@ -46,6 +48,11 @@ func (c *Config) Validate() error {
 		if err != nil {
 			return fmt.Errorf("controller[%d]: %v", i, err)
 		}
+	}
+
+	err := c.Webhook.Validate()
+	if err != nil {
+		return fmt.Errorf("webhook: %v", err)
 	}
 
 	return nil
@@ -137,6 +144,65 @@ func (sc SyncerConfig) Validate() error {
 		if err != nil {
 			return fmt.Errorf("invalid interval: %v", err)
 		}
+	}
+
+	return nil
+}
+
+type WebhookConfig struct {
+	Host     string                 `json:"host"`
+	Port     int                    `json:"port"`
+	TLS      WebhookTLSConfig       `json:"tls"`
+	Handlers []WebhookHandlerConfig `json:"handlers"`
+}
+
+func (c *WebhookConfig) Validate() error {
+	err := c.TLS.Validate()
+	if err != nil {
+		return fmt.Errorf("tls: %v", err)
+	}
+
+	return nil
+}
+
+type WebhookTLSConfig struct {
+	CertFile string `json:"certFile"`
+	KeyFile  string `json:"keyFile"`
+}
+
+func (c *WebhookTLSConfig) Validate() error {
+	if c.CertFile == "" {
+		return errors.New("cert file must be specified")
+	}
+	if c.KeyFile == "" {
+		return errors.New("key file must be specified")
+	}
+
+	_, err := os.Stat(c.CertFile)
+	if err != nil {
+		return fmt.Errorf("failed to read cert file: %v", err)
+	}
+	_, err = os.Stat(c.KeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to read key file: %v", err)
+	}
+
+	return nil
+}
+
+type WebhookHandlerConfig struct {
+	Resource  schema.GroupVersionKind `json:"resource"`
+	Validator HandlerConfig           `json:"validator"`
+}
+
+func (c *WebhookHandlerConfig) Validate() error {
+	if c.Resource.Empty() {
+		return errors.New("resource is empty")
+	}
+
+	err := c.Validator.Validate()
+	if err != nil {
+		return fmt.Errorf("validator: %v", err)
 	}
 
 	return nil
