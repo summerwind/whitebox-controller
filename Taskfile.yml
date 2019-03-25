@@ -22,4 +22,4 @@ tasks:
   build-container:
     deps: [test]
     cmds:
-    - docker build -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
+    - docker build --build-arg BUILD_FLAGS='{{.BUILD_FLAGS}}' -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
