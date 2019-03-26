@@ -60,7 +60,7 @@ func (s *Syncer) Start(stop <-chan struct{}) error {
 
 func (s *Syncer) Sync() error {
 	instanceList := &unstructured.UnstructuredList{}
-	instanceList.SetGroupVersionKind(s.config.Resource)
+	instanceList.SetGroupVersionKind(*s.config.Resource)
 
 	err := s.List(context.TODO(), instanceList)
 	if err != nil {

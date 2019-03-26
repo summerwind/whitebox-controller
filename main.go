@@ -52,7 +52,7 @@ func main() {
 	for i, _ := range c.Controllers {
 		cc := c.Controllers[i]
 
-		reconciler, err := reconciler.NewReconciler(&cc)
+		reconciler, err := reconciler.NewReconciler(cc)
 		if err != nil {
 			log.Error(err, "could not create reconciler")
 			os.Exit(1)
@@ -65,7 +65,7 @@ func main() {
 		}
 
 		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(cc.Resource)
+		obj.SetGroupVersionKind(*cc.Resource)
 
 		err = ctrl.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForObject{})
 		if err != nil {
@@ -75,7 +75,7 @@ func main() {
 
 		for _, dep := range cc.Dependents {
 			depObj := &unstructured.Unstructured{}
-			depObj.SetGroupVersionKind(dep)
+			depObj.SetGroupVersionKind(*dep)
 
 			err = ctrl.Watch(&source.Kind{Type: depObj}, &handler.EnqueueRequestForOwner{
 				IsController: true,
@@ -87,8 +87,8 @@ func main() {
 			}
 		}
 
-		if c.Controllers[i].Syncer.Interval != "" {
-			s, err := syncer.New(&cc, mgr)
+		if c.Controllers[i].Syncer != nil {
+			s, err := syncer.New(cc, mgr)
 			if err != nil {
 				log.Error(err, "could not create syncer")
 				os.Exit(1)
@@ -102,8 +102,8 @@ func main() {
 		}
 	}
 
-	if len(c.Webhook.Handlers) > 0 {
-		_, err := webhook.NewServer(&c.Webhook, mgr)
+	if c.Webhook != nil {
+		_, err := webhook.NewServer(c.Webhook, mgr)
 		if err != nil {
 			log.Error(err, "could not create webhook server")
 			os.Exit(1)

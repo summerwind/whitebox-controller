@@ -18,8 +18,8 @@ const (
 )
 
 type Config struct {
-	Controllers []ControllerConfig `json:"controllers"`
-	Webhook     WebhookConfig      `json:"webhook"`
+	Controllers []*ControllerConfig `json:"controllers"`
+	Webhook     *WebhookConfig      `json:"webhook,omitempty"`
 }
 
 func LoadFile(p string) (*Config, error) {
@@ -50,9 +50,11 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	err := c.Webhook.Validate()
-	if err != nil {
-		return fmt.Errorf("webhook: %v", err)
+	if c.Webhook != nil {
+		err := c.Webhook.Validate()
+		if err != nil {
+			return fmt.Errorf("webhook: %v", err)
+		}
 	}
 
 	return nil
@@ -60,35 +62,39 @@ func (c *Config) Validate() error {
 
 type ControllerConfig struct {
 	Name       string
-	Resource   schema.GroupVersionKind   `json:"resource"`
-	Dependents []schema.GroupVersionKind `json:"dependents"`
-	Reconciler HandlerConfig             `json:"reconciler"`
-	Syncer     SyncerConfig              `json:"syncer"`
+	Resource   *schema.GroupVersionKind   `json:"resource"`
+	Dependents []*schema.GroupVersionKind `json:"dependents"`
+	Reconciler *HandlerConfig             `json:"reconciler,omitempty"`
+	Syncer     *SyncerConfig              `json:"syncer,omitempty"`
 }
 
-func (cc *ControllerConfig) Validate() error {
-	if cc.Name == "" {
+func (c *ControllerConfig) Validate() error {
+	if c.Name == "" {
 		return errors.New("name must be specified")
 	}
 
-	if cc.Resource.Empty() {
+	if c.Resource == nil || c.Resource.Empty() {
 		return errors.New("resource is empty")
 	}
 
-	for i, dep := range cc.Dependents {
-		if dep.Empty() {
+	for i, dep := range c.Dependents {
+		if dep == nil || dep.Empty() {
 			return fmt.Errorf("dependents[%d] is empty", i)
 		}
 	}
 
-	err := cc.Reconciler.Validate()
-	if err != nil {
-		return fmt.Errorf("reconciler: %v", err)
+	if c.Reconciler != nil {
+		err := c.Reconciler.Validate()
+		if err != nil {
+			return fmt.Errorf("reconciler: %v", err)
+		}
 	}
 
-	err = cc.Syncer.Validate()
-	if err != nil {
-		return fmt.Errorf("syncer: %v", err)
+	if c.Syncer != nil {
+		err := c.Syncer.Validate()
+		if err != nil {
+			return fmt.Errorf("syncer: %v", err)
+		}
 	}
 
 	return nil
@@ -98,12 +104,12 @@ type HandlerConfig struct {
 	Exec *ExecHandlerConfig `json:"exec"`
 }
 
-func (hc *HandlerConfig) Validate() error {
-	if hc.Exec == nil {
-		return errors.New("exec must be specified")
+func (c *HandlerConfig) Validate() error {
+	if c.Exec == nil {
+		return errors.New("handler is empty")
 	}
 
-	err := hc.Exec.Validate()
+	err := c.Exec.Validate()
 	if err != nil {
 		return err
 	}
@@ -119,13 +125,13 @@ type ExecHandlerConfig struct {
 	Timeout    string            `json:"timeout"`
 }
 
-func (ehc ExecHandlerConfig) Validate() error {
-	if ehc.Command == "" {
+func (c ExecHandlerConfig) Validate() error {
+	if c.Command == "" {
 		return errors.New("command must be specified")
 	}
 
-	if ehc.Timeout != "" {
-		_, err := time.ParseDuration(ehc.Timeout)
+	if c.Timeout != "" {
+		_, err := time.ParseDuration(c.Timeout)
 		if err != nil {
 			return fmt.Errorf("invalid timeout: %v", err)
 		}
@@ -138,9 +144,9 @@ type SyncerConfig struct {
 	Interval string `json:"interval"`
 }
 
-func (sc SyncerConfig) Validate() error {
-	if sc.Interval != "" {
-		_, err := time.ParseDuration(sc.Interval)
+func (c SyncerConfig) Validate() error {
+	if c.Interval != "" {
+		_, err := time.ParseDuration(c.Interval)
 		if err != nil {
 			return fmt.Errorf("invalid interval: %v", err)
 		}
@@ -150,13 +156,17 @@ func (sc SyncerConfig) Validate() error {
 }
 
 type WebhookConfig struct {
-	Host     string                 `json:"host"`
-	Port     int                    `json:"port"`
-	TLS      WebhookTLSConfig       `json:"tls"`
-	Handlers []WebhookHandlerConfig `json:"handlers"`
+	Host     string                  `json:"host"`
+	Port     int                     `json:"port"`
+	TLS      *WebhookTLSConfig       `json:"tls"`
+	Handlers []*WebhookHandlerConfig `json:"handlers"`
 }
 
 func (c *WebhookConfig) Validate() error {
+	if c.TLS == nil {
+		return errors.New("tls must be specified")
+	}
+
 	err := c.TLS.Validate()
 	if err != nil {
 		return fmt.Errorf("tls: %v", err)
@@ -191,18 +201,20 @@ func (c *WebhookTLSConfig) Validate() error {
 }
 
 type WebhookHandlerConfig struct {
-	Resource  schema.GroupVersionKind `json:"resource"`
-	Validator HandlerConfig           `json:"validator"`
+	Resource  *schema.GroupVersionKind `json:"resource"`
+	Validator *HandlerConfig           `json:"validator"`
 }
 
 func (c *WebhookHandlerConfig) Validate() error {
-	if c.Resource.Empty() {
+	if c.Resource == nil || c.Resource.Empty() {
 		return errors.New("resource is empty")
 	}
 
-	err := c.Validator.Validate()
-	if err != nil {
-		return fmt.Errorf("validator: %v", err)
+	if c.Validator != nil {
+		err := c.Validator.Validate()
+		if err != nil {
+			return fmt.Errorf("validator: %v", err)
+		}
 	}
 
 	return nil
