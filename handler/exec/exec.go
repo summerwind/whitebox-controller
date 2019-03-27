@@ -77,11 +77,11 @@ func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
 	}
 
 	if h.debug {
-		fmt.Printf("[Exec] stdin: %s\n", string(buf))
+		log("stdin", string(buf))
 
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
-			fmt.Printf("[Exec] stderr: %s\n", scanner.Text())
+			log("stderr", scanner.Text())
 		}
 	}
 
@@ -91,7 +91,7 @@ func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
 	}
 
 	if h.debug {
-		fmt.Printf("[Exec] stdout: %s\n", stdout.String())
+		log("stdout", stdout.String())
 	}
 
 	if len(stdout.Bytes()) == 0 {
@@ -99,4 +99,8 @@ func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
 	}
 
 	return stdout.Bytes(), nil
+}
+
+func log(stream, msg string) {
+	fmt.Fprintf(os.Stderr, "[Exec] %s: %s\n", stream, msg)
 }
