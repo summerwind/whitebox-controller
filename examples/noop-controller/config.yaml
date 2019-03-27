@@ -1,0 +1,29 @@
+controllers:
+- name: noop
+  resource:
+    group: whitebox.summerwind.github.io
+    version: v1alpha1
+    kind: Noop
+  reconciler:
+    exec:
+      command: /bin/reconciler
+      timeout: 60s
+      debug: true
+  syncer:
+    interval: 30m
+
+webhook:
+  port: 8001
+  tls:
+    certFile: /etc/tls/server.pem
+    keyFile: /etc/tls/server-key.pem
+  handlers:
+  - resource:
+      group: whitebox.summerwind.github.io
+      version: v1alpha1
+      kind: Noop
+    validator:
+      exec:
+        command: /bin/validator
+        timeout: 60s
+        debug: true

@@ -1,0 +1,23 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: noop-controller
+webhooks:
+- name: noop.whitebox.summerwind.github.io
+  rules:
+  - apiGroups:
+    - "whitebox.summerwind.github.io"
+    apiVersions:
+    - "*"
+    resources:
+    - noop
+    operations:
+    - CREATE
+    - UPDATE
+  failurePolicy: Fail
+  clientConfig:
+    service:
+      name: noop-controller
+      namespace: kube-system
+      path: /noop.whitebox.summerwind.github.io/v1alpha1/validate
+    caBundle: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJxRENDQVU2Z0F3SUJBZ0lVRjlnSkl0T0xuaWVhdkRsWXRlcmhFeW5yRXhJd0NnWUlLb1pJemowRUF3SXcKTWpFT01Bd0dBMVVFQmhNRlNtRndZVzR4RGpBTUJnTlZCQWdUQlZSdmEzbHZNUkF3RGdZRFZRUURFd2RTYjI5MApJRU5CTUI0WERURTVNRE15TnpBek1Ua3dNRm9YRFRJME1ETXlOVEF6TVRrd01Gb3dNakVPTUF3R0ExVUVCaE1GClNtRndZVzR4RGpBTUJnTlZCQWdUQlZSdmEzbHZNUkF3RGdZRFZRUURFd2RTYjI5MElFTkJNRmt3RXdZSEtvWkkKemowQ0FRWUlLb1pJemowREFRY0RRZ0FFaWY4MVJUSTBnbjdEVW1rVmxGcWxyaVZMS3piVU5Rb3JaK3U2Q2VhTgowczZNS3FyRWpINWR1MkcvZFVUSFV5c0NUdksxbWFreWVDazlTa2YremU1THhhTkNNRUF3RGdZRFZSMFBBUUgvCkJBUURBZ0VHTUE4R0ExVWRFd0VCL3dRRk1BTUJBZjh3SFFZRFZSME9CQllFRkNxcWE5REljak9velJZVStqcWsKYVM4bVc0TkRNQW9HQ0NxR1NNNDlCQU1DQTBnQU1FVUNJUURJTXY2bFU5WkhwUlArdyt4ZkJaMUdWc3VpQVhzMgpYRlF0VHdFRUFvSDFPUUlnZklkZEZKMDRtVC9QWEMzOHJEVURPeU15UUJtUjRveVhIaWtjOU4zcWtYbz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
