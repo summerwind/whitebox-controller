@@ -9,6 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -18,6 +19,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 
 	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/observer"
 	"github.com/summerwind/whitebox-controller/reconciler"
 	"github.com/summerwind/whitebox-controller/syncer"
 	"github.com/summerwind/whitebox-controller/webhook"
@@ -52,13 +54,28 @@ func main() {
 	for i, _ := range c.Controllers {
 		cc := c.Controllers[i]
 
-		reconciler, err := reconciler.NewReconciler(cc)
-		if err != nil {
-			log.Error(err, "could not create reconciler")
-			os.Exit(1)
+		var (
+			r       reconcile.Reconciler
+			err     error
+			observe bool
+		)
+
+		if cc.Reconciler != nil {
+			r, err = reconciler.NewReconciler(cc)
+			if err != nil {
+				log.Error(err, "could not create reconciler")
+				os.Exit(1)
+			}
+		} else {
+			r, err = observer.New(cc)
+			if err != nil {
+				log.Error(err, "could not create observer")
+				os.Exit(1)
+			}
+			observe = true
 		}
 
-		ctrl, err := controller.New(cc.Name, mgr, controller.Options{Reconciler: reconciler})
+		ctrl, err := controller.New(cc.Name, mgr, controller.Options{Reconciler: r})
 		if err != nil {
 			log.Error(err, "could not create controller")
 			os.Exit(1)
@@ -71,6 +88,11 @@ func main() {
 		if err != nil {
 			log.Error(err, "failed to watch resource")
 			os.Exit(1)
+		}
+
+		// No need to setup deps and syncer for observer.
+		if observe {
+			continue
 		}
 
 		for _, dep := range cc.Dependents {

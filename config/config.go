@@ -65,6 +65,7 @@ type ControllerConfig struct {
 	Resource   schema.GroupVersionKind   `json:"resource"`
 	Dependents []schema.GroupVersionKind `json:"dependents"`
 	Reconciler *HandlerConfig            `json:"reconciler,omitempty"`
+	Observer   *HandlerConfig            `json:"observer,omitempty"`
 	Syncer     *SyncerConfig             `json:"syncer,omitempty"`
 }
 
@@ -77,10 +78,11 @@ func (c *ControllerConfig) Validate() error {
 		return errors.New("resource is empty")
 	}
 
-	for i, dep := range c.Dependents {
-		if dep.Empty() {
-			return fmt.Errorf("dependents[%d] is empty", i)
-		}
+	if c.Reconciler == nil && c.Observer == nil {
+		return errors.New("either reconciler or observer must be specified")
+	}
+	if c.Reconciler != nil && c.Observer != nil {
+		return errors.New("either reconciler or observer must be specified")
 	}
 
 	if c.Reconciler != nil {
@@ -88,12 +90,25 @@ func (c *ControllerConfig) Validate() error {
 		if err != nil {
 			return fmt.Errorf("reconciler: %v", err)
 		}
+
+		for i, dep := range c.Dependents {
+			if dep.Empty() {
+				return fmt.Errorf("dependents[%d] is empty", i)
+			}
+		}
+
+		if c.Syncer != nil {
+			err := c.Syncer.Validate()
+			if err != nil {
+				return fmt.Errorf("syncer: %v", err)
+			}
+		}
 	}
 
-	if c.Syncer != nil {
-		err := c.Syncer.Validate()
+	if c.Observer != nil {
+		err := c.Observer.Validate()
 		if err != nil {
-			return fmt.Errorf("syncer: %v", err)
+			return fmt.Errorf("observer: %v", err)
 		}
 	}
 
