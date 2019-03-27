@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -18,63 +17,50 @@ import (
 	"github.com/summerwind/whitebox-controller/handler/exec"
 )
 
-var timeout = 30 * time.Second
+var (
+	timeout = 30 * time.Second
+	log     = logf.Log.WithName("webhook")
+)
 
 type Server struct {
-	mux      *http.ServeMux
-	handlers map[string]http.Handler
-	config   *config.WebhookConfig
-	log      logr.Logger
+	handler http.Handler
+	config  *config.WebhookConfig
 }
 
 func NewServer(c *config.WebhookConfig, mgr manager.Manager) (*Server, error) {
 	mux := http.NewServeMux()
-	log := logf.Log.WithName("webhook")
 
 	for _, hc := range c.Handlers {
-		if hc.Validator.Exec == nil {
-			continue
-		}
-
-		h, err := exec.NewHandler(hc.Validator.Exec)
-		if err != nil {
-			return nil, err
-		}
-
-		validator := func(ctx context.Context, req admission.Request) admission.Response {
-			buf, err := json.Marshal(req)
+		if hc.Validator != nil {
+			hook, err := newValidationHook(hc.Validator)
 			if err != nil {
-				return admission.ValidationResponse(false, fmt.Sprintf("invalid request: %v", err))
+				return nil, err
 			}
 
-			out, err := h.Run(buf)
-			if err != nil {
-				return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
-			}
+			res := hc.Resource
+			p := fmt.Sprintf("/%s.%s/%s/validate", strings.ToLower(res.Kind), res.Group, res.Version)
 
-			res := admission.Response{}
-			err = json.Unmarshal(out, &res)
-			if err != nil {
-				return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
-			}
-
-			return res
+			log.Info("Adding validation hook", "path", p)
+			mux.Handle(p, hook)
 		}
 
-		hook := &admission.Webhook{Handler: admission.HandlerFunc(validator)}
-		hook.InjectLogger(log)
+		if hc.Mutator != nil {
+			hook, err := newMutationHook(hc.Mutator)
+			if err != nil {
+				return nil, err
+			}
 
-		res := hc.Resource
-		path := fmt.Sprintf("/%s.%s/%s/validate", strings.ToLower(res.Kind), res.Group, res.Version)
+			res := hc.Resource
+			p := fmt.Sprintf("/%s.%s/%s/mutate", strings.ToLower(res.Kind), res.Group, res.Version)
 
-		log.Info("Adding validation hook", "path", path)
-		mux.Handle(path, hook)
+			log.Info("Adding mutation hook", "path", p)
+			mux.Handle(p, hook)
+		}
 	}
 
 	s := &Server{
-		mux:    mux,
-		config: c,
-		log:    log,
+		handler: wrap(mux),
+		config:  c,
 	}
 
 	return s, mgr.Add(s)
@@ -97,7 +83,7 @@ func (s *Server) Start(stop <-chan struct{}) error {
 	}
 
 	server := &http.Server{
-		Handler: s.Handler(),
+		Handler: s.handler,
 	}
 
 	shutdown := make(chan struct{})
@@ -109,13 +95,13 @@ func (s *Server) Start(stop <-chan struct{}) error {
 
 		err := server.Shutdown(ctx)
 		if err != nil {
-			s.log.Error(err, "Failed to gracefully shutdown")
+			log.Error(err, "Failed to gracefully shutdown")
 		}
 
 		close(shutdown)
 	}()
 
-	s.log.Info("Starting webhook server", "address", addr)
+	log.Info("Starting webhook server", "address", addr)
 	err = server.Serve(listener)
 	if err != nil && err != http.ErrServerClosed {
 		return err
@@ -125,14 +111,80 @@ func (s *Server) Start(stop <-chan struct{}) error {
 	return nil
 }
 
-func (s *Server) Handler() http.Handler {
+func wrap(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		reqPath := req.URL.Path
 		start := time.Now()
+
 		defer func() {
 			d := time.Now().Sub(start).Seconds()
-			s.log.Info("Requesting webhook handler", "path", reqPath, "duration", d)
+			log.Info("Requesting webhook handler", "path", reqPath, "duration", d)
 		}()
-		s.mux.ServeHTTP(resp, req)
+
+		h.ServeHTTP(resp, req)
 	})
+}
+
+func newValidationHook(hc *config.HandlerConfig) (http.Handler, error) {
+	h, err := exec.NewHandler(hc.Exec)
+	if err != nil {
+		return nil, err
+	}
+
+	validator := func(ctx context.Context, req admission.Request) admission.Response {
+		buf, err := json.Marshal(req)
+		if err != nil {
+			return admission.ValidationResponse(false, fmt.Sprintf("invalid request: %v", err))
+		}
+
+		out, err := h.Run(buf)
+		if err != nil {
+			return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
+		}
+
+		res := admission.Response{}
+		err = json.Unmarshal(out, &res)
+		if err != nil {
+			return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
+		}
+
+		return res
+	}
+
+	hook := &admission.Webhook{Handler: admission.HandlerFunc(validator)}
+	hook.InjectLogger(log)
+
+	return hook, nil
+}
+
+func newMutationHook(hc *config.HandlerConfig) (http.Handler, error) {
+	h, err := exec.NewHandler(hc.Exec)
+	if err != nil {
+		return nil, err
+	}
+
+	mutator := func(ctx context.Context, req admission.Request) admission.Response {
+		buf, err := json.Marshal(req)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("invalid request: %v", err))
+		}
+
+		out, err := h.Run(buf)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("handler error: %v", err))
+		}
+
+		res := admission.Response{}
+		err = json.Unmarshal(out, &res)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("handler error: %v", err))
+		}
+
+		return res
+	}
+
+	hook := &admission.Webhook{Handler: admission.HandlerFunc(mutator)}
+	hook.InjectLogger(log)
+
+	return hook, nil
 }

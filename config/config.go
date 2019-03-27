@@ -202,12 +202,13 @@ func (c *WebhookTLSConfig) Validate() error {
 }
 
 type WebhookHandlerConfig struct {
-	Resource  *schema.GroupVersionKind `json:"resource"`
-	Validator *HandlerConfig           `json:"validator"`
+	Resource  schema.GroupVersionKind `json:"resource"`
+	Validator *HandlerConfig          `json:"validator"`
+	Mutator   *HandlerConfig          `json:"mutator"`
 }
 
 func (c *WebhookHandlerConfig) Validate() error {
-	if c.Resource == nil || c.Resource.Empty() {
+	if c.Resource.Empty() {
 		return errors.New("resource is empty")
 	}
 
