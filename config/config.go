@@ -123,6 +123,7 @@ type ExecHandlerConfig struct {
 	WorkingDir string            `json:"workingDir"`
 	Env        map[string]string `json:"env"`
 	Timeout    string            `json:"timeout"`
+	Debug      bool              `json:"debug"`
 }
 
 func (c ExecHandlerConfig) Validate() error {

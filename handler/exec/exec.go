@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -18,63 +19,82 @@ type ExecHandler struct {
 	env        []string
 	workingDir string
 	timeout    time.Duration
+	debug      bool
 }
 
-func NewHandler(hc *config.ExecHandlerConfig) (*ExecHandler, error) {
+func NewHandler(c *config.ExecHandlerConfig) (*ExecHandler, error) {
 	args := []string{}
-	if hc.Args != nil {
-		args = append(args, hc.Args...)
+	if c.Args != nil {
+		args = append(args, c.Args...)
 	}
 
 	env := []string{}
-	if hc.Env != nil {
-		for key, val := range hc.Env {
+	if c.Env != nil {
+		for key, val := range c.Env {
 			env = append(env, fmt.Sprintf("%s=%s", key, val))
 		}
 	}
 
 	timeout := 60 * time.Second
-	if hc.Timeout != "" {
+	if c.Timeout != "" {
 		var err error
-		timeout, err = time.ParseDuration(hc.Timeout)
+		timeout, err = time.ParseDuration(c.Timeout)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return &ExecHandler{
-		command:    hc.Command,
+		command:    c.Command,
 		args:       args,
 		env:        env,
-		workingDir: hc.WorkingDir,
+		workingDir: c.WorkingDir,
 		timeout:    timeout,
+		debug:      c.Debug,
 	}, nil
 }
 
 func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
-	var stderr bytes.Buffer
+	var stdout bytes.Buffer
 
 	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, h.command, h.args...)
 	cmd.Stdin = bytes.NewReader(buf)
-	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
 	cmd.Env = append(os.Environ(), h.env...)
 	cmd.Dir = h.workingDir
 
-	out, err := cmd.Output()
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		ee, ok := err.(*exec.ExitError)
-		if ok {
-			return nil, fmt.Errorf("%s: %s", err, string(ee.Stderr))
-		}
 		return nil, err
 	}
 
-	if len(out) == 0 {
-		return nil, errors.New("empty command output")
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
 	}
 
-	return out, nil
+	if h.debug {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			fmt.Printf("[Exec] stderr: %s\n", scanner.Text())
+		}
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return nil, err
+	}
+
+	if h.debug {
+		fmt.Printf("[Exec] stdout: %s\n", stdout.String())
+	}
+
+	if len(stdout.Bytes()) == 0 {
+		return nil, errors.New("no output of command")
+	}
+
+	return stdout.Bytes(), nil
 }
