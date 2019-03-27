@@ -123,14 +123,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	created, updated, deleted := state.Diff(newState)
 
 	for _, res := range created {
+		log.Info("Creating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
+
 		res.SetOwnerReferences([]metav1.OwnerReference{instanceRef})
 		err = r.Create(context.TODO(), &res)
 		if err != nil {
 			log.Error(err, "Failed to create a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
-
-		log.Info("Resource created", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
 	for _, res := range updated {
@@ -138,23 +138,24 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			res.SetOwnerReferences([]metav1.OwnerReference{instanceRef})
 		}
 
+		log.Info("Updating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
+
 		err = r.Update(context.TODO(), &res)
 		if err != nil {
 			log.Error(err, "Failed to update a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
 
-		log.Info("Resource updated", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
 	for _, res := range deleted {
+		log.Info("Deleting resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
+
 		err = r.Delete(context.TODO(), &res)
 		if err != nil {
 			log.Error(err, "Failed to delete a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
-
-		log.Info("Resource deleted", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
 	return reconcile.Result{}, nil
