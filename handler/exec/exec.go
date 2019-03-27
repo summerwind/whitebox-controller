@@ -77,6 +77,8 @@ func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
 	}
 
 	if h.debug {
+		fmt.Printf("[Exec] stdin: %s\n", string(buf))
+
 		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			fmt.Printf("[Exec] stderr: %s\n", scanner.Text())
