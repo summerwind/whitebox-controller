@@ -27,7 +27,7 @@ type Reconciler struct {
 	handler handler.Handler
 }
 
-func NewReconciler(config *config.ControllerConfig) (*Reconciler, error) {
+func New(config *config.ControllerConfig) (*Reconciler, error) {
 	h, err := exec.NewHandler(config.Reconciler.Exec)
 	if err != nil {
 		return nil, err

@@ -61,18 +61,24 @@ func main() {
 		)
 
 		if cc.Reconciler != nil {
-			r, err = reconciler.NewReconciler(cc)
+			r, err = reconciler.New(cc)
 			if err != nil {
 				log.Error(err, "could not create reconciler")
 				os.Exit(1)
 			}
-		} else {
+		}
+
+		if cc.Observer != nil {
 			r, err = observer.New(cc)
 			if err != nil {
 				log.Error(err, "could not create observer")
 				os.Exit(1)
 			}
 			observe = true
+		}
+
+		if r == nil {
+			log.Error(err, "either reconciler or observer must be specified")
 		}
 
 		ctrl, err := controller.New(cc.Name, mgr, controller.Options{Reconciler: r})

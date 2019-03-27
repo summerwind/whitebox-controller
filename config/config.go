@@ -82,7 +82,7 @@ func (c *ControllerConfig) Validate() error {
 		return errors.New("either reconciler or observer must be specified")
 	}
 	if c.Reconciler != nil && c.Observer != nil {
-		return errors.New("either reconciler or observer must be specified")
+		return errors.New("exactly one of reconciler or observer must be specified")
 	}
 
 	if c.Reconciler != nil {
