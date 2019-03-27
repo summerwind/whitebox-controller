@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,12 +14,13 @@ import (
 	"github.com/summerwind/whitebox-controller/config"
 )
 
+var log = logf.Log.WithName("syncer")
+
 type Syncer struct {
 	client.Client
 	C        chan event.GenericEvent
 	config   *config.ControllerConfig
 	interval time.Duration
-	log      logr.Logger
 }
 
 func New(c *config.ControllerConfig, mgr manager.Manager) (*Syncer, error) {
@@ -34,7 +34,6 @@ func New(c *config.ControllerConfig, mgr manager.Manager) (*Syncer, error) {
 		C:        make(chan event.GenericEvent),
 		config:   c,
 		interval: interval,
-		log:      logf.Log.WithName("syncer"),
 	}
 
 	return s, mgr.Add(s)
@@ -48,11 +47,11 @@ func (s *Syncer) Start(stop <-chan struct{}) error {
 		case <-t.C:
 			err := s.Sync()
 			if err != nil {
-				s.log.Error(err, "Sync error", "syncer", s.config.Name)
+				log.Error(err, "Sync error", "syncer", s.config.Name)
 			}
-			s.log.Info("Synced", "syncer", s.config.Name)
+			log.Info("Synced", "syncer", s.config.Name)
 		case <-stop:
-			s.log.Info("Stopping syncer", "syncer", s.config.Name)
+			log.Info("Stopping syncer", "syncer", s.config.Name)
 			return nil
 		}
 	}

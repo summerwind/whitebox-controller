@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-logr/logr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,11 +19,12 @@ import (
 	"github.com/summerwind/whitebox-controller/handler/exec"
 )
 
+var log = logf.Log.WithName("reconciler")
+
 type Reconciler struct {
 	client.Client
 	config  *config.ControllerConfig
 	handler handler.Handler
-	log     logr.Logger
 }
 
 func NewReconciler(config *config.ControllerConfig) (*Reconciler, error) {
@@ -36,7 +36,6 @@ func NewReconciler(config *config.ControllerConfig) (*Reconciler, error) {
 	r := &Reconciler{
 		config:  config,
 		handler: h,
-		log:     logf.Log.WithName("reconciler"),
 	}
 
 	return r, nil
@@ -59,7 +58,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
-		r.log.Error(err, "Failed to get a resource", "namespace", namespace, "name", name)
+		log.Error(err, "Failed to get a resource", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
@@ -80,7 +79,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		err := r.List(context.TODO(), dependentList, client.InNamespace(namespace))
 		if err != nil {
-			r.log.Error(err, "Failed to get a list for dependent resource", "namespace", namespace, "name", name)
+			log.Error(err, "Failed to get a list for dependent resource", "namespace", namespace, "name", name)
 			return reconcile.Result{}, err
 		}
 
@@ -98,26 +97,26 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	state := NewState(instance, dependents)
 	buf, err := json.Marshal(state)
 	if err != nil {
-		r.log.Error(err, "Failed to encode state", "namespace", namespace, "name", name)
+		log.Error(err, "Failed to encode state", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
 	out, err := r.handler.Run(buf)
 	if err != nil {
-		r.log.Error(err, "Handler error", "namespace", namespace, "name", name)
+		log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
 	newState := &State{}
 	err = json.Unmarshal(out, newState)
 	if err != nil {
-		r.log.Error(err, "Failed to decode new state", "namespace", namespace, "name", name)
+		log.Error(err, "Failed to decode new state", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
 	err = r.validateState(state, newState)
 	if err != nil {
-		r.log.Error(err, "Ignored due to the new state is invalid", "namespace", namespace, "name", name)
+		log.Error(err, "Ignored due to the new state is invalid", "namespace", namespace, "name", name)
 		return reconcile.Result{}, nil
 	}
 
@@ -127,11 +126,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		res.SetOwnerReferences([]metav1.OwnerReference{instanceRef})
 		err = r.Create(context.TODO(), &res)
 		if err != nil {
-			r.log.Error(err, "Failed to create a resource", "namespace", res.GetNamespace(), "name", res.GetName())
+			log.Error(err, "Failed to create a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
 
-		r.log.Info("Resource created", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
+		log.Info("Resource created", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
 	for _, res := range updated {
@@ -141,21 +140,21 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		err = r.Update(context.TODO(), &res)
 		if err != nil {
-			r.log.Error(err, "Failed to update a resource", "namespace", res.GetNamespace(), "name", res.GetName())
+			log.Error(err, "Failed to update a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
 
-		r.log.Info("Resource updated", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
+		log.Info("Resource updated", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
 	for _, res := range deleted {
 		err = r.Delete(context.TODO(), &res)
 		if err != nil {
-			r.log.Error(err, "Failed to delete a resource", "namespace", res.GetNamespace(), "name", res.GetName())
+			log.Error(err, "Failed to delete a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
 
-		r.log.Info("Resource deleted", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
+		log.Info("Resource deleted", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 	}
 
 	return reconcile.Result{}, nil
