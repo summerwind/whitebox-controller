@@ -97,7 +97,7 @@ func (s *Server) Start(stop <-chan struct{}) error {
 	}
 
 	server := &http.Server{
-		Handler: s.mux,
+		Handler: s.Handler(),
 	}
 
 	shutdown := make(chan struct{})
@@ -123,4 +123,16 @@ func (s *Server) Start(stop <-chan struct{}) error {
 
 	<-shutdown
 	return nil
+}
+
+func (s *Server) Handler() http.Handler {
+	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+		reqPath := req.URL.Path
+		start := time.Now()
+		defer func() {
+			d := time.Now().Sub(start).Seconds()
+			s.log.Info("Requesting webhook handler", "path", reqPath, "duration", d)
+		}()
+		s.mux.ServeHTTP(resp, req)
+	})
 }
