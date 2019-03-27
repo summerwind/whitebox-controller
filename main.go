@@ -65,7 +65,7 @@ func main() {
 		}
 
 		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(*cc.Resource)
+		obj.SetGroupVersionKind(cc.Resource)
 
 		err = ctrl.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForObject{})
 		if err != nil {
@@ -75,7 +75,7 @@ func main() {
 
 		for _, dep := range cc.Dependents {
 			depObj := &unstructured.Unstructured{}
-			depObj.SetGroupVersionKind(*dep)
+			depObj.SetGroupVersionKind(dep)
 
 			err = ctrl.Watch(&source.Kind{Type: depObj}, &handler.EnqueueRequestForOwner{
 				IsController: true,

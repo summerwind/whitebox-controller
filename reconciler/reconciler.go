@@ -52,7 +52,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	name := req.Name
 
 	instance := &unstructured.Unstructured{}
-	instance.SetGroupVersionKind(*r.config.Resource)
+	instance.SetGroupVersionKind(r.config.Resource)
 
 	err := r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
@@ -76,7 +76,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	dependents := []unstructured.Unstructured{}
 	for _, dep := range r.config.Dependents {
 		dependentList := &unstructured.UnstructuredList{}
-		dependentList.SetGroupVersionKind(*dep)
+		dependentList.SetGroupVersionKind(dep)
 
 		err := r.List(context.TODO(), dependentList, client.InNamespace(namespace))
 		if err != nil {

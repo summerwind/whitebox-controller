@@ -62,10 +62,10 @@ func (c *Config) Validate() error {
 
 type ControllerConfig struct {
 	Name       string
-	Resource   *schema.GroupVersionKind   `json:"resource"`
-	Dependents []*schema.GroupVersionKind `json:"dependents"`
-	Reconciler *HandlerConfig             `json:"reconciler,omitempty"`
-	Syncer     *SyncerConfig              `json:"syncer,omitempty"`
+	Resource   schema.GroupVersionKind   `json:"resource"`
+	Dependents []schema.GroupVersionKind `json:"dependents"`
+	Reconciler *HandlerConfig            `json:"reconciler,omitempty"`
+	Syncer     *SyncerConfig             `json:"syncer,omitempty"`
 }
 
 func (c *ControllerConfig) Validate() error {
@@ -73,12 +73,12 @@ func (c *ControllerConfig) Validate() error {
 		return errors.New("name must be specified")
 	}
 
-	if c.Resource == nil || c.Resource.Empty() {
+	if c.Resource.Empty() {
 		return errors.New("resource is empty")
 	}
 
 	for i, dep := range c.Dependents {
-		if dep == nil || dep.Empty() {
+		if dep.Empty() {
 			return fmt.Errorf("dependents[%d] is empty", i)
 		}
 	}
