@@ -27,14 +27,14 @@ type Reconciler struct {
 	handler handler.Handler
 }
 
-func New(config *config.ControllerConfig) (*Reconciler, error) {
+func New(c *config.ControllerConfig) (*Reconciler, error) {
 	h, err := exec.NewHandler(config.Reconciler.Exec)
 	if err != nil {
 		return nil, err
 	}
 
 	r := &Reconciler{
-		config:  config,
+		config:  c,
 		handler: h,
 	}
 
@@ -103,6 +103,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	out, err := r.handler.Run(buf)
 	if err != nil {
+		log.Error(err, "Handler error", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
+	}
+
+	if len(out) == 0 {
+		err := errors.New("empty state")
 		log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -94,13 +93,9 @@ func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
 		log("stdout", stdout.String())
 	}
 
-	if len(stdout.Bytes()) == 0 {
-		return nil, errors.New("no output of command")
-	}
-
 	return stdout.Bytes(), nil
 }
 
 func log(stream, msg string) {
-	fmt.Fprintf(os.Stderr, "[Exec] %s: %s\n", stream, msg)
+	fmt.Fprintf(os.Stderr, "[exec] %s: %s\n", stream, msg)
 }
