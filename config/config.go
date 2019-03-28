@@ -117,16 +117,29 @@ func (c *ControllerConfig) Validate() error {
 
 type HandlerConfig struct {
 	Exec *ExecHandlerConfig `json:"exec"`
+	HTTP *HTTPHandlerConfig `json:"http"`
 }
 
 func (c *HandlerConfig) Validate() error {
-	if c.Exec == nil {
-		return errors.New("handler is empty")
+	if c.Exec == nil && c.HTTP == nil {
+		return errors.New("handler must be specified")
+	}
+	if c.Exec != nil && c.HTTP != nil {
+		return errors.New("exactly one handler must be specified")
 	}
 
-	err := c.Exec.Validate()
-	if err != nil {
-		return err
+	if c.Exec != nil {
+		err := c.Exec.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.HTTP != nil {
+		err := c.HTTP.Validate()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -150,6 +163,66 @@ func (c ExecHandlerConfig) Validate() error {
 		_, err := time.ParseDuration(c.Timeout)
 		if err != nil {
 			return fmt.Errorf("invalid timeout: %v", err)
+		}
+	}
+
+	return nil
+}
+
+type HTTPHandlerConfig struct {
+	URL     string                `json:"url"`
+	TLS     *HTTPHanlderTLSConfig `json:"tls,omitempty"`
+	Timeout string                `json:"timeout"`
+	Debug   bool                  `json:"debug"`
+}
+
+func (c HTTPHandlerConfig) Validate() error {
+	if c.URL == "" {
+		return errors.New("url must be specified")
+	}
+
+	if c.TLS != nil {
+		err := c.TLS.Validate()
+		if err != nil {
+			return fmt.Errorf("tls: %v", err)
+		}
+	}
+
+	if c.Timeout != "" {
+		_, err := time.ParseDuration(c.Timeout)
+		if err != nil {
+			return fmt.Errorf("invalid timeout: %v", err)
+		}
+	}
+
+	return nil
+}
+
+type HTTPHanlderTLSConfig struct {
+	CertFile   string `json:"certFile"`
+	KeyFile    string `json:"keyFile"`
+	CACertFile string `json:"caCertFile"`
+}
+
+func (c *HTTPHanlderTLSConfig) Validate() error {
+	if c.CertFile != "" {
+		_, err := os.Stat(c.CertFile)
+		if err != nil {
+			return fmt.Errorf("failed to read cert file: %v", err)
+		}
+	}
+
+	if c.KeyFile != "" {
+		_, err := os.Stat(c.KeyFile)
+		if err != nil {
+			return fmt.Errorf("failed to read key file: %v", err)
+		}
+	}
+
+	if c.CACertFile != "" {
+		_, err := os.Stat(c.CACertFile)
+		if err != nil {
+			return fmt.Errorf("failed to read ca cert file: %v", err)
 		}
 	}
 
