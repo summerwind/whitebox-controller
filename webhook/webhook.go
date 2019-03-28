@@ -14,7 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/summerwind/whitebox-controller/config"
-	"github.com/summerwind/whitebox-controller/handler/exec"
+	"github.com/summerwind/whitebox-controller/handler/common"
 )
 
 var (
@@ -126,7 +126,7 @@ func wrap(h http.Handler) http.Handler {
 }
 
 func newValidationHook(hc *config.HandlerConfig) (http.Handler, error) {
-	h, err := exec.NewHandler(hc.Exec)
+	h, err := common.NewHandler(hc)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func newValidationHook(hc *config.HandlerConfig) (http.Handler, error) {
 }
 
 func newMutationHook(hc *config.HandlerConfig) (http.Handler, error) {
-	h, err := exec.NewHandler(hc.Exec)
+	h, err := common.NewHandler(hc)
 	if err != nil {
 		return nil, err
 	}

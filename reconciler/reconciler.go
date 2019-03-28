@@ -16,7 +16,7 @@ import (
 
 	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/handler"
-	"github.com/summerwind/whitebox-controller/handler/exec"
+	"github.com/summerwind/whitebox-controller/handler/common"
 )
 
 var log = logf.Log.WithName("reconciler")
@@ -28,7 +28,7 @@ type Reconciler struct {
 }
 
 func New(c *config.ControllerConfig) (*Reconciler, error) {
-	h, err := exec.NewHandler(config.Reconciler.Exec)
+	h, err := common.NewHandler(c.Reconciler)
 	if err != nil {
 		return nil, err
 	}

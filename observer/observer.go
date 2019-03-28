@@ -12,7 +12,7 @@ import (
 
 	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/handler"
-	"github.com/summerwind/whitebox-controller/handler/exec"
+	"github.com/summerwind/whitebox-controller/handler/common"
 )
 
 var log = logf.Log.WithName("reconciler")
@@ -23,14 +23,14 @@ type Observer struct {
 	handler handler.Handler
 }
 
-func New(config *config.ControllerConfig) (*Observer, error) {
-	h, err := exec.NewHandler(config.Observer.Exec)
+func New(c *config.ControllerConfig) (*Observer, error) {
+	h, err := common.NewHandler(c.Reconciler)
 	if err != nil {
 		return nil, err
 	}
 
 	r := &Observer{
-		config:  config,
+		config:  c,
 		handler: h,
 	}
 
