@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/third_party/forked/golang/template"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/jsonpath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -27,19 +28,21 @@ var log = logf.Log.WithName("reconciler")
 
 type Reconciler struct {
 	client.Client
-	config  *config.ControllerConfig
-	handler handler.Handler
+	config   *config.ControllerConfig
+	handler  handler.Handler
+	recorder record.EventRecorder
 }
 
-func New(c *config.ControllerConfig) (*Reconciler, error) {
+func New(c *config.ControllerConfig, rec record.EventRecorder) (*Reconciler, error) {
 	h, err := common.NewHandler(c.Reconciler)
 	if err != nil {
 		return nil, err
 	}
 
 	r := &Reconciler{
-		config:  c,
-		handler: h,
+		config:   c,
+		handler:  h,
+		recorder: rec,
 	}
 
 	return r, nil
@@ -204,6 +207,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			log.Error(err, "Failed to delete a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
 		}
+	}
+
+	for _, ev := range newState.Events {
+		if ev.Empty() {
+			log.Info("Ignored event due to the event is invalid", "namespace", namespace, "name", name, "event", ev)
+			continue
+		}
+		r.recorder.Event(instance, ev.Type, ev.Reason, ev.Message)
 	}
 
 	return reconcile.Result{}, nil

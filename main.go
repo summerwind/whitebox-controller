@@ -61,7 +61,7 @@ func main() {
 		)
 
 		if cc.Reconciler != nil {
-			r, err = reconciler.New(cc)
+			r, err = reconciler.New(cc, mgr.GetEventRecorderFor(cc.Name))
 			if err != nil {
 				log.Error(err, "could not create reconciler")
 				os.Exit(1)

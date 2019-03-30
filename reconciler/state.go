@@ -10,6 +10,7 @@ type State struct {
 	Resource   *unstructured.Unstructured  `json:"resource"`
 	Dependents []unstructured.Unstructured `json:"dependents"`
 	References []unstructured.Unstructured `json:"references"`
+	Events     []StateEvent                `json:"events"`
 }
 
 func NewState(resource *unstructured.Unstructured, dependents, refs []unstructured.Unstructured) *State {
@@ -17,6 +18,7 @@ func NewState(resource *unstructured.Unstructured, dependents, refs []unstructur
 		Resource:   resource,
 		Dependents: dependents,
 		References: refs,
+		Events:     []StateEvent{},
 	}
 }
 
@@ -58,4 +60,17 @@ func (s *State) Diff(new *State) ([]unstructured.Unstructured, []unstructured.Un
 	}
 
 	return created, updated, deleted
+}
+
+type StateEvent struct {
+	Type    string `json:"type"`
+	Reason  string `json:"reason"`
+	Message string `json:"message"`
+}
+
+func (e *StateEvent) Empty() bool {
+	if e.Type == "" || e.Reason == "" || e.Message == "" {
+		return true
+	}
+	return false
 }
