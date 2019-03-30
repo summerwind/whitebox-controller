@@ -1,0 +1,6 @@
+apiVersion: whitebox.summerwind.github.io/v1alpha1
+kind: Noop
+metadata:
+  name: valid
+spec:
+  data: hello
