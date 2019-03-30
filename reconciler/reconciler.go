@@ -1,6 +1,7 @@
 package reconciler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/third_party/forked/golang/template"
+	"k8s.io/client-go/util/jsonpath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -94,7 +98,45 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	state := NewState(instance, dependents)
+	refs := []unstructured.Unstructured{}
+	for _, ref := range r.config.References {
+		if ref.NameFieldPath == "" {
+			continue
+		}
+
+		refNames, err := getNamesFromField(ref.NameFieldPath, instance)
+		if err != nil {
+			log.Error(err, "Failed to get reference names", "namespace", namespace, "name", name, "field", ref.NameFieldPath)
+			return reconcile.Result{}, err
+		}
+
+		if len(refNames) == 0 {
+			log.Error(err, "References names not found", "namespace", namespace, "name", name, "field", ref.NameFieldPath)
+			continue
+		}
+
+		for i := range refNames {
+			refInstance := &unstructured.Unstructured{}
+			refInstance.SetGroupVersionKind(ref.GroupVersionKind)
+
+			nn := types.NamespacedName{
+				Namespace: namespace,
+				Name:      refNames[i],
+			}
+			err = r.Get(context.TODO(), nn, refInstance)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+				log.Error(err, "Failed to get a resource", "namespace", namespace, "name", refNames[i])
+				return reconcile.Result{}, err
+			}
+
+			refs = append(refs, *refInstance)
+		}
+	}
+
+	state := NewState(instance, dependents, refs)
 	buf, err := json.Marshal(state)
 	if err != nil {
 		log.Error(err, "Failed to encode state", "namespace", namespace, "name", name)
@@ -207,4 +249,40 @@ func (r *Reconciler) validateState(current, new *State) error {
 	}
 
 	return nil
+}
+
+func getNamesFromField(namePath string, res *unstructured.Unstructured) ([]string, error) {
+	j := jsonpath.New("reference")
+	j.AllowMissingKeys(true)
+
+	err := j.Parse(fmt.Sprintf("{%s}", namePath))
+	if err != nil {
+		return []string{}, err
+	}
+
+	results, err := j.FindResults(res.Object)
+	if err != nil {
+		return []string{}, err
+	}
+
+	nameMap := map[string]bool{}
+	for x := range results {
+		for _, v := range results[x] {
+			val, ok := template.PrintableValue(v)
+			if !ok {
+				return nil, fmt.Errorf("can't print type %s", v.Type())
+			}
+
+			var buf bytes.Buffer
+			fmt.Fprint(&buf, val)
+			nameMap[buf.String()] = true
+		}
+	}
+
+	names := []string{}
+	for key, _ := range nameMap {
+		names = append(names, key)
+	}
+
+	return names, nil
 }

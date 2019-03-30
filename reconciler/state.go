@@ -9,12 +9,14 @@ import (
 type State struct {
 	Resource   *unstructured.Unstructured  `json:"resource"`
 	Dependents []unstructured.Unstructured `json:"dependents"`
+	References []unstructured.Unstructured `json:"references"`
 }
 
-func NewState(resource *unstructured.Unstructured, dependents []unstructured.Unstructured) *State {
+func NewState(resource *unstructured.Unstructured, dependents, refs []unstructured.Unstructured) *State {
 	return &State{
 		Resource:   resource,
 		Dependents: dependents,
+		References: refs,
 	}
 }
 

@@ -64,6 +64,7 @@ type ControllerConfig struct {
 	Name       string
 	Resource   schema.GroupVersionKind   `json:"resource"`
 	Dependents []schema.GroupVersionKind `json:"dependents"`
+	References []ReferenceConfig         `json:"references"`
 	Reconciler *HandlerConfig            `json:"reconciler,omitempty"`
 	Observer   *HandlerConfig            `json:"observer,omitempty"`
 	Syncer     *SyncerConfig             `json:"syncer,omitempty"`
@@ -83,6 +84,13 @@ func (c *ControllerConfig) Validate() error {
 	}
 	if c.Reconciler != nil && c.Observer != nil {
 		return errors.New("exactly one of reconciler or observer must be specified")
+	}
+
+	for i, ref := range c.References {
+		err := ref.Validate()
+		if err != nil {
+			return fmt.Errorf("references[%d]: %v", i, err)
+		}
 	}
 
 	if c.Reconciler != nil {
@@ -110,6 +118,23 @@ func (c *ControllerConfig) Validate() error {
 		if err != nil {
 			return fmt.Errorf("observer: %v", err)
 		}
+	}
+
+	return nil
+}
+
+type ReferenceConfig struct {
+	schema.GroupVersionKind
+	NameFieldPath string `json:"nameFieldPath"`
+}
+
+func (c *ReferenceConfig) Validate() error {
+	if c.GroupVersionKind.Empty() {
+		return errors.New("resource is empty")
+	}
+
+	if c.NameFieldPath == "" {
+		return errors.New("nameFieldPath must be specified")
 	}
 
 	return nil
