@@ -10,8 +10,9 @@ RUN apt update \
 
 COPY --from=base /bin/whitebox-controller /bin/whitebox-controller
 
-COPY ./reconciler.py /bin/reconciler
-COPY ./validator.py  /bin/validator
-COPY ./config.yaml   /config.yaml
+COPY reconciler.py /bin/reconciler
+COPY validator.py  /bin/validator
+COPY mutator.py    /bin/mutator
+COPY config.yaml   /config.yaml
 
 ENTRYPOINT ["/bin/whitebox-controller"]

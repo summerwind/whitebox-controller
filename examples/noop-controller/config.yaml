@@ -27,3 +27,8 @@ webhook:
         command: /bin/validator
         timeout: 60s
         debug: true
+    mutator:
+      exec:
+        command: /bin/mutator
+        timeout: 60s
+        debug: true
