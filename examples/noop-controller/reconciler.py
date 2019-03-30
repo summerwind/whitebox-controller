@@ -7,8 +7,12 @@ import logging
 def main():
     state = json.load(sys.stdin)
 
-    if "resource" in state:
+    phase = state.get("resource", {}).get("status", {}).get("phase", "")
+    if phase == "":
         state["resource"]["status"] = {"phase":"completed"}
+        state["events"] = [
+            {"type":"Normal", "reason":"Completed", "message":"Done"}
+        ]
 
     json.dump(state, sys.stdout)
 
