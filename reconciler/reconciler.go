@@ -69,74 +69,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	enabled := true
-	instanceRef := metav1.OwnerReference{
-		APIVersion:         instance.GetAPIVersion(),
-		Kind:               instance.GetKind(),
-		Name:               instance.GetName(),
-		UID:                instance.GetUID(),
-		Controller:         &enabled,
-		BlockOwnerDeletion: &enabled,
+	ownerRef := newOwnerReference(instance)
+	dependents, err := r.getDependents(instance, ownerRef)
+	if err != nil {
+		log.Error(err, "Failed to get dependent resources", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
 	}
 
-	dependents := []unstructured.Unstructured{}
-	for _, dep := range r.config.Dependents {
-		dependentList := &unstructured.UnstructuredList{}
-		dependentList.SetGroupVersionKind(dep)
-
-		err := r.List(context.TODO(), dependentList, client.InNamespace(namespace))
-		if err != nil {
-			log.Error(err, "Failed to get a list for dependent resource", "namespace", namespace, "name", name)
-			return reconcile.Result{}, err
-		}
-
-		for _, item := range dependentList.Items {
-			ownerRefs := item.GetOwnerReferences()
-			for _, ownerRef := range ownerRefs {
-				if !reflect.DeepEqual(ownerRef, instanceRef) {
-					continue
-				}
-				dependents = append(dependents, item)
-			}
-		}
-	}
-
-	refs := []unstructured.Unstructured{}
-	for _, ref := range r.config.References {
-		if ref.NameFieldPath == "" {
-			continue
-		}
-
-		refNames, err := getNamesFromField(ref.NameFieldPath, instance)
-		if err != nil {
-			log.Error(err, "Failed to get reference names", "namespace", namespace, "name", name, "field", ref.NameFieldPath)
-			return reconcile.Result{}, err
-		}
-
-		if len(refNames) == 0 {
-			log.Error(err, "References names not found", "namespace", namespace, "name", name, "field", ref.NameFieldPath)
-			continue
-		}
-
-		for i := range refNames {
-			refInstance := &unstructured.Unstructured{}
-			refInstance.SetGroupVersionKind(ref.GroupVersionKind)
-
-			nn := types.NamespacedName{
-				Namespace: namespace,
-				Name:      refNames[i],
-			}
-			err = r.Get(context.TODO(), nn, refInstance)
-			if err != nil {
-				if apierrors.IsNotFound(err) {
-					continue
-				}
-				log.Error(err, "Failed to get a resource", "namespace", namespace, "name", refNames[i])
-				return reconcile.Result{}, err
-			}
-
-			refs = append(refs, *refInstance)
-		}
+	refs, err := r.getReferences(instance)
+	if err != nil {
+		log.Error(err, "Failed to get reference resources", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
 	}
 
 	state := NewState(instance, dependents, refs)
@@ -176,7 +119,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	for _, res := range created {
 		log.Info("Creating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 
-		res.SetOwnerReferences([]metav1.OwnerReference{instanceRef})
+		res.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 		err = r.Create(context.TODO(), &res)
 		if err != nil {
 			log.Error(err, "Failed to create a resource", "namespace", res.GetNamespace(), "name", res.GetName())
@@ -186,7 +129,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	for _, res := range updated {
 		if res.GetSelfLink() != instance.GetSelfLink() {
-			res.SetOwnerReferences([]metav1.OwnerReference{instanceRef})
+			res.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 		}
 
 		log.Info("Updating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
@@ -218,6 +161,76 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// getDependents returns a list of dependent resources with
+// an specified owner reference.
+func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef metav1.OwnerReference) ([]unstructured.Unstructured, error) {
+	dependents := []unstructured.Unstructured{}
+
+	for _, dep := range r.config.Dependents {
+		dependentList := &unstructured.UnstructuredList{}
+		dependentList.SetGroupVersionKind(dep)
+
+		err := r.List(context.TODO(), dependentList, client.InNamespace(res.GetNamespace()))
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get a list for dependent resource: %v", err)
+		}
+
+		for _, item := range dependentList.Items {
+			depOwnerRefs := item.GetOwnerReferences()
+			for _, ref := range depOwnerRefs {
+				if !reflect.DeepEqual(ref, ownerRef) {
+					continue
+				}
+				dependents = append(dependents, item)
+			}
+		}
+	}
+
+	return dependents, nil
+}
+
+// getReferences returns a list of reference resources based on
+// spcified field path.
+func (r *Reconciler) getReferences(res *unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+	refs := []unstructured.Unstructured{}
+
+	for _, ref := range r.config.References {
+		if ref.NameFieldPath == "" {
+			continue
+		}
+
+		refNames, err := getNamesFromField(ref.NameFieldPath, res)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get reference name list: %v", err)
+		}
+
+		if len(refNames) == 0 {
+			continue
+		}
+
+		for i := range refNames {
+			refRes := &unstructured.Unstructured{}
+			refRes.SetGroupVersionKind(ref.GroupVersionKind)
+
+			nn := types.NamespacedName{
+				Namespace: res.GetNamespace(),
+				Name:      refNames[i],
+			}
+			err = r.Get(context.TODO(), nn, refRes)
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					continue
+				}
+				return nil, fmt.Errorf("Failed to get a resource '%s/%s': %v", res.GetNamespace(), refNames[i], err)
+			}
+
+			refs = append(refs, *refRes)
+		}
+	}
+
+	return refs, nil
 }
 
 func (r *Reconciler) validateState(current, new *State) error {
@@ -262,6 +275,23 @@ func (r *Reconciler) validateState(current, new *State) error {
 	return nil
 }
 
+// newOwnerReference creates and returns an OwnerReference based on
+// specified resource's GroupVersionKind.
+func newOwnerReference(res *unstructured.Unstructured) metav1.OwnerReference {
+	enabled := true
+
+	return metav1.OwnerReference{
+		APIVersion:         res.GetAPIVersion(),
+		Kind:               res.GetKind(),
+		Name:               res.GetName(),
+		UID:                res.GetUID(),
+		Controller:         &enabled,
+		BlockOwnerDeletion: &enabled,
+	}
+}
+
+// getNamesFromField returns a list of reference resource names based
+// on JSON Path and resource.
 func getNamesFromField(namePath string, res *unstructured.Unstructured) ([]string, error) {
 	j := jsonpath.New("reference")
 	j.AllowMissingKeys(true)
