@@ -2,7 +2,7 @@
 
 Whitebox Controller is an extensible general purpose controller for Kubernetes.
 
-This controller executes processing such as reconcile or validation of resources required for the operation of the Kubernetes controller by executing specified external commands or sending HTTP requests to a specified URL.
+This controller executes processing such as reconciliation or validation of resources required for the operation of the Kubernetes controller by executing specified external commands or sending HTTP requests to a specified URL.
 
 ## Motivation
 
