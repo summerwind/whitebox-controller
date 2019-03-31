@@ -66,6 +66,7 @@ type ControllerConfig struct {
 	Dependents []schema.GroupVersionKind `json:"dependents"`
 	References []ReferenceConfig         `json:"references"`
 	Reconciler *HandlerConfig            `json:"reconciler,omitempty"`
+	Finalizer  *HandlerConfig            `json:"finalizer,omitempty"`
 	Observer   *HandlerConfig            `json:"observer,omitempty"`
 	Syncer     *SyncerConfig             `json:"syncer,omitempty"`
 }
@@ -102,6 +103,13 @@ func (c *ControllerConfig) Validate() error {
 		for i, dep := range c.Dependents {
 			if dep.Empty() {
 				return fmt.Errorf("dependents[%d] is empty", i)
+			}
+		}
+
+		if c.Finalizer != nil {
+			err := c.Finalizer.Validate()
+			if err != nil {
+				return fmt.Errorf("finalizer: %v", err)
 			}
 		}
 

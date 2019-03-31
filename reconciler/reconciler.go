@@ -28,9 +28,10 @@ var log = logf.Log.WithName("reconciler")
 
 type Reconciler struct {
 	client.Client
-	config   *config.ControllerConfig
-	handler  handler.Handler
-	recorder record.EventRecorder
+	config    *config.ControllerConfig
+	handler   handler.Handler
+	finalizer handler.Handler
+	recorder  record.EventRecorder
 }
 
 func New(c *config.ControllerConfig, rec record.EventRecorder) (*Reconciler, error) {
@@ -45,6 +46,14 @@ func New(c *config.ControllerConfig, rec record.EventRecorder) (*Reconciler, err
 		recorder: rec,
 	}
 
+	if c.Finalizer != nil {
+		fh, err := common.NewHandler(c.Reconciler)
+		if err != nil {
+			return nil, err
+		}
+		r.finalizer = fh
+	}
+
 	return r, nil
 }
 
@@ -54,13 +63,19 @@ func (r *Reconciler) InjectClient(c client.Client) error {
 }
 
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+	var (
+		out       []byte
+		err       error
+		finalized bool
+	)
+
 	namespace := req.Namespace
 	name := req.Name
 
 	instance := &unstructured.Unstructured{}
 	instance.SetGroupVersionKind(r.config.Resource)
 
-	err := r.Get(context.TODO(), req.NamespacedName, instance)
+	err = r.Get(context.TODO(), req.NamespacedName, instance)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -89,7 +104,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	out, err := r.handler.Run(buf)
+	if isDeleting(instance) && r.finalizer != nil {
+		log.Info("Starting finalizer", "namespace", namespace, "name", name)
+		out, err = r.finalizer.Run(buf)
+		finalized = true
+	} else {
+		out, err = r.handler.Run(buf)
+	}
 	if err != nil {
 		log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
@@ -112,6 +133,20 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err != nil {
 		log.Error(err, "Ignored due to the new state is invalid", "namespace", namespace, "name", name)
 		return reconcile.Result{}, nil
+	}
+
+	if finalized {
+		err := r.unsetFinalizer(newState.Resource)
+		if err != nil {
+			log.Error(err, "Failed to unset finalizer from resource metadata", "namespace", namespace, "name", name)
+			return reconcile.Result{}, err
+		}
+	} else if r.finalizer != nil {
+		err := r.setFinalizer(newState.Resource)
+		if err != nil {
+			log.Error(err, "Failed to set finalizer from resource metadata", "namespace", namespace, "name", name)
+			return reconcile.Result{}, err
+		}
 	}
 
 	created, updated, deleted := state.Diff(newState)
@@ -275,6 +310,79 @@ func (r *Reconciler) validateState(current, new *State) error {
 	return nil
 }
 
+// setFinalizer adds it's finalizer name to resource's metadata.
+func (r *Reconciler) setFinalizer(res *unstructured.Unstructured) error {
+	finalizers, ok, err := unstructured.NestedStringSlice(res.UnstructuredContent(), "metadata", "finalizers")
+	if err != nil {
+		return err
+	}
+
+	name := r.getFinalizerName()
+
+	if ok {
+		exist := false
+		for i := range finalizers {
+			if finalizers[i] == name {
+				exist = true
+			}
+		}
+		if exist {
+			return nil
+		}
+
+		finalizers = append(finalizers, name)
+	} else {
+		finalizers = []string{name}
+	}
+
+	err = unstructured.SetNestedStringSlice(res.UnstructuredContent(), finalizers, "metadata", "finalizers")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// unsetFinalizer removes it's finalizer name from resource's metadata.
+func (r *Reconciler) unsetFinalizer(res *unstructured.Unstructured) error {
+	finalizers, ok, err := unstructured.NestedStringSlice(res.UnstructuredContent(), "metadata", "finalizers")
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return nil
+	}
+
+	new := []string{}
+	name := r.getFinalizerName()
+	exist := false
+
+	for i := range finalizers {
+		if finalizers[i] == name {
+			exist = true
+			continue
+		}
+		new = append(new, finalizers[i])
+	}
+
+	if !exist {
+		return nil
+	}
+
+	err = unstructured.SetNestedStringSlice(res.UnstructuredContent(), new, "metadata", "finalizers")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// getFinalizerName returns controller's finalizer name.
+func (r *Reconciler) getFinalizerName() string {
+	return fmt.Sprintf("%s.%s", r.config.Name, r.config.Resource.Group)
+}
+
 // newOwnerReference creates and returns an OwnerReference based on
 // specified resource's GroupVersionKind.
 func newOwnerReference(res *unstructured.Unstructured) metav1.OwnerReference {
@@ -326,4 +434,14 @@ func getNamesFromField(namePath string, res *unstructured.Unstructured) ([]strin
 	}
 
 	return names, nil
+}
+
+// isDeleting returns whether the specified resource is being deleted.
+func isDeleting(res *unstructured.Unstructured) bool {
+	_, ok, err := unstructured.NestedString(res.UnstructuredContent(), "metadata", "deletionTimestamp")
+	if err != nil {
+		return false
+	}
+
+	return ok
 }
