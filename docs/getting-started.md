@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide shows you how to implement an controller using Whitebox Controller.
+This guide shows you how to implement a controller using Whitebox Controller.
 
 ## Before you begin
 
@@ -33,7 +33,7 @@ $ mv whitebox-controller /usr/local/bin/
 
 ## Creating configuration file
 
-To implement a controller, first create a configuration file for Whitebox Controller. The configuration file defines which resources you want to watch the changes and which commands you want to execute when changes are made.
+To implement a controller, create a configuration file for Whitebox Controller. The configuration file defines which resources you want to watch the changes and which commands you want to execute when changes are made.
 
 Create a configuration file as follows. This configuration file defines the configuration to watches the status of 'Hello' custom resource and to execute the command `reconciler.sh` when changes are made.
 
