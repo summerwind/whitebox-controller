@@ -307,6 +307,9 @@ $ docker push ${NAME}/hello-controller:latest
 Finally, let's deploy the controller to Kubernetes. This example deploys a controller to `kube-system` namespace. Create a manifest file as follows.
 
 ```
+$ vim controller.yaml
+```
+```
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -368,6 +371,9 @@ spec:
             cpu: 100m
             memory: 20Mi
       serviceAccountName: noop-controller
+```
+```
+$ kubectl apply -f controller.yaml
 ```
 
 Apply the manifest file to Kubernetes and make sure that the Controller is now running.
