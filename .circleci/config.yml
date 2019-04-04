@@ -1,0 +1,12 @@
+version: 2
+jobs:
+  build:
+    docker:
+    - image: summerwind/toolbox:latest
+    environment:
+      GO111MODULE: "on"
+    steps:
+    - checkout
+    - run:
+        name: Build
+        command: task build
