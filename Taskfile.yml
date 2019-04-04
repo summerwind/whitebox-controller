@@ -19,6 +19,22 @@ tasks:
     deps: [test]
     cmds:
     - go tool cover -html=cover.out
+  dist:
+    deps: [test]
+    cmds:
+    - mkdir dist
+    - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} .
+    - tar zcf dist/{{.NAME}}-darwin-amd64.tar.gz {{.NAME}}
+    - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} .
+    - tar zcf dist/{{.NAME}}-linux-amd64.tar.gz {{.NAME}}
+  release:
+    deps: [dist]
+    cmds:
+    - github-release upload -u summerwind -r {{.NAME}} -t v{{.VERSION}} -f dist/{{.NAME}}-darwin-amd64.tar.gz
+    - github-release upload -u summerwind -r {{.NAME}} -t v{{.VERSION}} -f dist/{{.NAME}}-linux-amd64.tar.gz
+  clean:
+    cmds:
+    - rm -rf cover.out whitebox-controller dist
   build-container:
     deps: [test]
     cmds:
@@ -26,3 +42,6 @@ tasks:
   push-container:
     cmds:
     - docker push summerwind/{{.NAME}}:latest
+  push-release-container:
+    cmds:
+    - docker push summerwind/{{.NAME}}:{{.VERSION}}
