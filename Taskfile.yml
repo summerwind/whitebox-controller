@@ -19,22 +19,21 @@ tasks:
     deps: [test]
     cmds:
     - go tool cover -html=cover.out
-  dist:
+  release:
     deps: [test]
     cmds:
-    - mkdir dist
+    - mkdir release
     - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} .
-    - tar zcf dist/{{.NAME}}-darwin-amd64.tar.gz {{.NAME}}
+    - tar zcf release/{{.NAME}}-darwin-amd64.tar.gz {{.NAME}}
     - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} .
-    - tar zcf dist/{{.NAME}}-linux-amd64.tar.gz {{.NAME}}
-  release:
-    deps: [dist]
+    - tar zcf release/{{.NAME}}-linux-amd64.tar.gz {{.NAME}}
+  github-release:
+    deps: [release]
     cmds:
-    - github-release upload -u summerwind -r {{.NAME}} -t v{{.VERSION}} -f dist/{{.NAME}}-darwin-amd64.tar.gz
-    - github-release upload -u summerwind -r {{.NAME}} -t v{{.VERSION}} -f dist/{{.NAME}}-linux-amd64.tar.gz
+    - ghr v{{.VERSION}} release/
   clean:
     cmds:
-    - rm -rf cover.out whitebox-controller dist
+    - rm -rf cover.out whitebox-controller release
   build-container:
     cmds:
     - docker build --build-arg BUILD_FLAGS='{{.BUILD_FLAGS}}' -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
