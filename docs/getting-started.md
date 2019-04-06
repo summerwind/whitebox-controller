@@ -370,7 +370,7 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
-      serviceAccountName: noop-controller
+      serviceAccountName: hello-controller
 ```
 
 Apply the manifest file to Kubernetes and make sure that the Controller is now running.

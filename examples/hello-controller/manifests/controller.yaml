@@ -58,4 +58,4 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
-      serviceAccountName: noop-controller
+      serviceAccountName: hello-controller
