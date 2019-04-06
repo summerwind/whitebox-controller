@@ -24,7 +24,7 @@ type Observer struct {
 }
 
 func New(c *config.ControllerConfig) (*Observer, error) {
-	h, err := common.NewHandler(c.Reconciler)
+	h, err := common.NewHandler(c.Observer)
 	if err != nil {
 		return nil, err
 	}
