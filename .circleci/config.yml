@@ -5,8 +5,10 @@ jobs:
     - image: summerwind/toolbox:latest
     environment:
       GO111MODULE: "on"
+      DOCKER_BUILDKIT: "1"
     steps:
     - checkout
+    - setup_remote_docker
     - run:
-        name: Build
-        command: task build
+        name: Build container
+        command: task build-container
