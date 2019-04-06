@@ -23,12 +23,13 @@ workflows:
   version: 2
   main:
     jobs:
-      - build
+    - build
   release:
     jobs:
-      - release:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /.*/
+    - release:
+        context: global
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
