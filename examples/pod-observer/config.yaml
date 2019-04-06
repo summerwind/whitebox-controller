@@ -1,0 +1,11 @@
+controllers:
+- name: pod-observer
+  resource:
+    group: ""
+    version: v1
+    kind: Pod
+  observer:
+    exec:
+      command: ./observer.sh
+      timeout: 60s
+      debug: true
