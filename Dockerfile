@@ -16,7 +16,7 @@ COPY . /workspace
 WORKDIR /workspace
 
 RUN go vet ./... && go test -v ./...
-RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} .
+RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} ./cmd/whitebox-controller
 
 ###################
 

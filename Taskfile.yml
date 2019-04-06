@@ -10,7 +10,7 @@ tasks:
   build:
     deps: [test]
     cmds:
-    - CGO_ENABLED=0 go build {{.BUILD_FLAGS}} .
+    - CGO_ENABLED=0 go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
   test:
     cmds:
     - go vet ./...
@@ -23,10 +23,10 @@ tasks:
     deps: [test]
     cmds:
     - mkdir release
-    - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} .
-    - tar zcf release/{{.NAME}}-darwin-amd64.tar.gz {{.NAME}}
-    - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} .
-    - tar zcf release/{{.NAME}}-linux-amd64.tar.gz {{.NAME}}
+    - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
+    - tar zcf release/{{.NAME}}-darwin-amd64.tar.gz whitebox-controller
+    - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
+    - tar zcf release/{{.NAME}}-linux-amd64.tar.gz whitebox-controller
   github-release:
     deps: [release]
     cmds:
