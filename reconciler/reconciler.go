@@ -35,7 +35,7 @@ type Reconciler struct {
 }
 
 func New(c *config.ControllerConfig, rec record.EventRecorder) (*Reconciler, error) {
-	h, err := common.NewHandler(c.Reconciler)
+	h, err := common.NewHandler(&c.Reconciler.HandlerConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func New(c *config.ControllerConfig, rec record.EventRecorder) (*Reconciler, err
 	}
 
 	if c.Finalizer != nil {
-		fh, err := common.NewHandler(c.Reconciler)
+		fh, err := common.NewHandler(&c.Reconciler.HandlerConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -68,6 +68,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		err       error
 		finalized bool
 	)
+
+	if r.IsObserver() {
+		return r.Observe(req)
+	}
 
 	namespace := req.Namespace
 	name := req.Name
@@ -196,6 +200,42 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) Observe(req reconcile.Request) (reconcile.Result, error) {
+	namespace := req.Namespace
+	name := req.Name
+
+	instance := &unstructured.Unstructured{}
+	instance.SetGroupVersionKind(r.config.Resource)
+
+	err := r.Get(context.TODO(), req.NamespacedName, instance)
+	if err != nil && !apierrors.IsNotFound(err) {
+		log.Error(err, "Failed to get a resource", "namespace", namespace, "name", name)
+		return reconcile.Result{}, nil
+	}
+
+	// This allows determination of deleted resources
+	instance.SetNamespace(namespace)
+	instance.SetName(name)
+
+	buf, err := json.Marshal(instance)
+	if err != nil {
+		log.Error(err, "Failed to encode resource", "namespace", namespace, "name", name)
+		return reconcile.Result{}, nil
+	}
+
+	_, err = r.handler.Run(buf)
+	if err != nil {
+		log.Error(err, "Handler error", "namespace", namespace, "name", name)
+		return reconcile.Result{}, nil
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) IsObserver() bool {
+	return r.config.Reconciler.Observe
 }
 
 // getDependents returns a list of dependent resources with

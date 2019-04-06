@@ -65,9 +65,8 @@ type ControllerConfig struct {
 	Resource   schema.GroupVersionKind   `json:"resource"`
 	Dependents []schema.GroupVersionKind `json:"dependents"`
 	References []ReferenceConfig         `json:"references"`
-	Reconciler *HandlerConfig            `json:"reconciler,omitempty"`
+	Reconciler *ReconcilerConfig         `json:"reconciler,omitempty"`
 	Finalizer  *HandlerConfig            `json:"finalizer,omitempty"`
-	Observer   *HandlerConfig            `json:"observer,omitempty"`
 	Syncer     *SyncerConfig             `json:"syncer,omitempty"`
 }
 
@@ -80,13 +79,6 @@ func (c *ControllerConfig) Validate() error {
 		return errors.New("resource is empty")
 	}
 
-	if c.Reconciler == nil && c.Observer == nil {
-		return errors.New("either reconciler or observer must be specified")
-	}
-	if c.Reconciler != nil && c.Observer != nil {
-		return errors.New("exactly one of reconciler or observer must be specified")
-	}
-
 	for i, ref := range c.References {
 		err := ref.Validate()
 		if err != nil {
@@ -94,37 +86,32 @@ func (c *ControllerConfig) Validate() error {
 		}
 	}
 
-	if c.Reconciler != nil {
-		err := c.Reconciler.Validate()
-		if err != nil {
-			return fmt.Errorf("reconciler: %v", err)
-		}
-
-		for i, dep := range c.Dependents {
-			if dep.Empty() {
-				return fmt.Errorf("dependents[%d] is empty", i)
-			}
-		}
-
-		if c.Finalizer != nil {
-			err := c.Finalizer.Validate()
-			if err != nil {
-				return fmt.Errorf("finalizer: %v", err)
-			}
-		}
-
-		if c.Syncer != nil {
-			err := c.Syncer.Validate()
-			if err != nil {
-				return fmt.Errorf("syncer: %v", err)
-			}
+	for i, dep := range c.Dependents {
+		if dep.Empty() {
+			return fmt.Errorf("dependents[%d] is empty", i)
 		}
 	}
 
-	if c.Observer != nil {
-		err := c.Observer.Validate()
+	if c.Reconciler == nil {
+		return errors.New("reconciler must be specified")
+	}
+
+	err := c.Reconciler.Validate()
+	if err != nil {
+		return fmt.Errorf("reconciler: %v", err)
+	}
+
+	if c.Finalizer != nil {
+		err := c.Finalizer.Validate()
 		if err != nil {
-			return fmt.Errorf("observer: %v", err)
+			return fmt.Errorf("finalizer: %v", err)
+		}
+	}
+
+	if c.Syncer != nil {
+		err := c.Syncer.Validate()
+		if err != nil {
+			return fmt.Errorf("syncer: %v", err)
 		}
 	}
 
@@ -146,6 +133,15 @@ func (c *ReferenceConfig) Validate() error {
 	}
 
 	return nil
+}
+
+type ReconcilerConfig struct {
+	HandlerConfig
+	Observe bool `json:"observe"`
+}
+
+func (c *ReconcilerConfig) Validate() error {
+	return c.HandlerConfig.Validate()
 }
 
 type HandlerConfig struct {
