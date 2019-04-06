@@ -1,5 +1,6 @@
 .DS_Store
-.csr
 
-./whitebox-controller
+/whitebox-controller
+/whitebox-gen
+/release
 cover.out
