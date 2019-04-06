@@ -3,9 +3,6 @@ jobs:
   build:
     docker:
     - image: summerwind/toolbox:latest
-    environment:
-      GO111MODULE: "on"
-      DOCKER_BUILDKIT: "1"
     steps:
     - checkout
     - setup_remote_docker:
@@ -13,3 +10,25 @@ jobs:
     - run:
         name: Build container
         command: task build-container
+  release:
+    docker:
+    - image: summerwind/toolbox:latest
+    steps:
+    - checkout
+    - run:
+        name: Upload release files to GitHub
+        command: task github-release
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - build
+  release:
+    jobs:
+      - release:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /.*/
