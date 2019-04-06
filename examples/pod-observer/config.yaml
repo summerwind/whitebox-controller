@@ -4,7 +4,8 @@ controllers:
     group: ""
     version: v1
     kind: Pod
-  observer:
+  reconciler:
+    observe: true
     exec:
       command: ./observer.sh
       timeout: 60s
