@@ -8,7 +8,8 @@ jobs:
       DOCKER_BUILDKIT: "1"
     steps:
     - checkout
-    - setup_remote_docker
+    - setup_remote_docker:
+        version: 18.09.3
     - run:
         name: Build container
         command: task build-container
