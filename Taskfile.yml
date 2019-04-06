@@ -36,7 +36,6 @@ tasks:
     cmds:
     - rm -rf cover.out whitebox-controller dist
   build-container:
-    deps: [test]
     cmds:
     - docker build --build-arg BUILD_FLAGS='{{.BUILD_FLAGS}}' -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
   push-container:

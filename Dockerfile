@@ -1,16 +1,22 @@
-# syntax = docker/dockerfile:experimental
-
-FROM golang:1.12.1 as builder
-
-ARG BUILD_ARG
+FROM golang:1.12.1 as base
 
 ENV GO111MODULE=on
+
+WORKDIR /go/src/github.com/summerwind/whitebox-controller
+COPY go.mod go.sum .
+RUN go mod download
+
+###################
+
+FROM base as builder
+
+ARG BUILD_ARG
 
 COPY . /workspace
 WORKDIR /workspace
 
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build ${BUILD_FLAGS} .
+RUN go vet ./... && go test -v ./...
+RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} .
 
 ###################
 
