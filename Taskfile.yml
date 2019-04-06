@@ -11,6 +11,7 @@ tasks:
     deps: [test]
     cmds:
     - CGO_ENABLED=0 go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
+    - CGO_ENABLED=0 go build {{.BUILD_FLAGS}} ./cmd/whitebox-gen
   test:
     cmds:
     - go vet ./...
@@ -24,16 +25,18 @@ tasks:
     cmds:
     - mkdir release
     - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
-    - tar zcf release/{{.NAME}}-darwin-amd64.tar.gz whitebox-controller
+    - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} ./cmd/whitebox-gen
+    - tar zcf release/{{.NAME}}-darwin-amd64.tar.gz whitebox-controller whitebox-gen
     - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
-    - tar zcf release/{{.NAME}}-linux-amd64.tar.gz whitebox-controller
+    - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} ./cmd/whitebox-gen
+    - tar zcf release/{{.NAME}}-linux-amd64.tar.gz whitebox-controller whitebox-gen
   github-release:
     deps: [release]
     cmds:
     - ghr v{{.VERSION}} release/
   clean:
     cmds:
-    - rm -rf cover.out whitebox-controller release
+    - rm -rf whitebox-controller whitebox-gen cover.out release
   build-container:
     cmds:
     - docker build --build-arg BUILD_FLAGS='{{.BUILD_FLAGS}}' -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
