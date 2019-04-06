@@ -9,7 +9,7 @@ This guide shows you how to implement a controller using Whitebox Controller.
 
 ## What is Whitebox Controller?
 
-Whitebox Controller is an extensible general purpose controller for Kuberentes that can be implemented using any command. With Whitebox Controller, you can implement the Kubernetes controller simply by creating the command that you need to proccessing resource, and the configuration file.
+Whitebox Controller is an extensible general purpose controller for Kuberentes. With Whitebox Controller, you can implement a Kubernetes controller simply by creating the command that you need to proccessing resource state, and the configuration file.
 
 ## Install
 
@@ -33,9 +33,9 @@ $ mv whitebox-controller /usr/local/bin/
 
 ## Creating configuration file
 
-To implement a controller, create a configuration file for Whitebox Controller. The configuration file defines which resources you want to watch the changes and which commands you want to execute when changes are made.
+To begin implementing a controller, create a configuration file first. The configuration file defines which resources you want to watch the changes and which commands you want to execute when changes are made.
 
-Create a configuration file as follows. This configuration file defines the configuration to watches the status of 'Hello' custom resource and to execute the command `reconciler.sh` when changes are made.
+Create a configuration file as follows. This file defines the configuration to watches the status of 'Hello' custom resource and to execute the command `reconciler.sh` when changes are made.
 
 ```
 $ vim config.yaml
@@ -78,7 +78,7 @@ spec:
   scope: Namespaced
 ```
 
-Once you have a manifest file, add a resource on Kubernetes.
+Once you have a manifest file, apply it to Kubernetes.
 
 ```
 $ kubectl apply -f crd.yaml
@@ -113,9 +113,9 @@ hello     10m
 
 ## Building your reconciler
 
-Next, implement `reconciler.sh`, which is a command to be executed when the status of the Hello resource changes. **Reconciler** is a component in the Kubernetes controller that is responsible for coordinating the state between resources. Whitebox Controller can replace Reconciler with any command.
+Next, implement `reconciler.sh`, which is a command to be executed when the status of 'Hello' resource changes. **Reconciler** is a component in the Kubernetes controller that is responsible for coordinating the state between resources. Whitebox Controller can replace reconciler with any command.
 
-The Whitebox Controller executes a command when changes are made in the watched resource, and writes the changed resource information with JSON format as follows to the stdin of the command.
+Before implementing your reconciler, let's understand the inputs and outputs. Whitebox Controller executes a command when changes are made in the watched resource, and writes the changed resource information with JSON format as follows to the stdin of the command.
 
 ```
 {
@@ -199,7 +199,7 @@ $ chmod +x reconciler.sh
 
 ## Testing your controller
 
-Now that the reconciler has been implemented, run the `whitebox-controller` command to verify that the controller works properly.
+Now that the reconciler has been implemented, run the `whitebox-controller` command to verify that your controller works properly.
 
 ```
 $ whitebox-controller
@@ -237,7 +237,7 @@ $ whitebox-controller
 }
 ```
 
-Logs with the `[exec]` prefix are logs for debugging. These logs are come from stdin, stdout, and stderr of the reconciler command. If you look at the log starting with `[exec] stdout:`, you can see that the `.resource.stat us.phase` field has the value `completed` as intended.
+Logs with the `[exec]` prefix are for debugging. These logs are come from stdin, stdout, and stderr of the reconciler command. If you look at the log starting with `[exec] stdout:`, you can see that the `.resource.stat us.phase` field has the value `completed` as intended.
 
 You can also see that the value of the `.resource.stat us.phase` field in Kubernetes has been changed.
 
@@ -262,7 +262,7 @@ Status:
 Events:   <none>
 ```
 
-It has been confirmed that your controller works!
+Now we have confirmed that the controller works!
 
 ## Building container image
 
@@ -372,18 +372,14 @@ spec:
             memory: 20Mi
       serviceAccountName: noop-controller
 ```
-```
-$ kubectl apply -f controller.yaml
-```
 
 Apply the manifest file to Kubernetes and make sure that the Controller is now running.
 
 ```
+$ kubectl apply -f controller.yaml
 $ kubectl get -n kube-system pod
 NAME                               READY     STATUS    RESTARTS   AGE
 ...
 hello-controller-54d9456cb4-v5swt  1/1       Running   0          10s
 ...
 ```
-
-It's done. Enjoy your Kubernetes life!
