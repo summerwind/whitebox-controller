@@ -1,0 +1,10 @@
+controllers:
+- name: hello-controller
+  resource:
+    group: whitebox.summerwind.github.io
+    version: v1alpha1
+    kind: Hello
+  reconciler:
+    exec:
+      command: ./reconciler.sh
+      debug: true
