@@ -24,12 +24,19 @@ tasks:
     deps: [test]
     cmds:
     - mkdir release
-    - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
-    - CGO_ENABLED=0 GOOS=darwin go build {{.BUILD_FLAGS}} ./cmd/whitebox-gen
-    - tar zcf release/{{.NAME}}-darwin-amd64.tar.gz whitebox-controller whitebox-gen
-    - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
-    - CGO_ENABLED=0 GOOS=linux go build {{.BUILD_FLAGS}} ./cmd/whitebox-gen
-    - tar zcf release/{{.NAME}}-linux-amd64.tar.gz whitebox-controller whitebox-gen
+    - task: release-file
+      vars: {OS: darwin, ARCH: amd64}
+    - task: release-file
+      vars: {OS: linux, ARCH: amd64}
+    - task: release-file
+      vars: {OS: linux, ARCH: arm}
+    - task: release-file
+      vars: {OS: linux, ARCH: arm64}
+  release-file:
+    cmds:
+    - CGO_ENABLED=0 GOOS={{.OS}} GOARCH={{.ARCH}} go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
+    - CGO_ENABLED=0 GOOS={{.OS}} GOARCH={{.ARCH}} go build {{.BUILD_FLAGS}} ./cmd/whitebox-gen
+    - tar zcf release/{{.NAME}}-{{.OS}}-{{.ARCH}}.tar.gz whitebox-controller whitebox-gen
   github-release:
     deps: [release]
     cmds:
