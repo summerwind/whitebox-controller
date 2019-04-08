@@ -4,7 +4,7 @@ Whitebox Controller uses YAML format configuration file. By default Whitebox Con
 
 The configuration file consists of two parts: Controller configuration and Webhook configuration. The following sections explain these configurations in detail.
 
-## Controller Configuration
+## Controller configuration
 
 The `controllers` key in the configuration file defines the settings for each controller.
 
@@ -68,7 +68,7 @@ controllers:
     interval: 30s
 ```
 
-## Webhook Configuration
+## Webhook configuration
 
 The `webhook` key in the configuration file defines the settings for webhook server. This server provides admission webhooks for Kubernetes.
 
@@ -113,14 +113,14 @@ webhook:
         args: ["mutate"]
 ```
 
-## Resource Configuration
+## Resource configuration
 
 Resource configuration are used in the following fields of Controller and Webhook configuration.
 
-- '.controllers[\*].resource'
-- '.controllers[\*].dependents'
-- '.controllers[\*].references'
-- '.webhook.handlers[\*].resource'
+- `.controllers[*].resource`
+- `.controllers[*].dependents`
+- `.controllers[*].references`
+- `.webhook.handlers[*].resource`
 
 Resource configuration consists of the following fields. These shows the types of resources in Kubernetes.
 
@@ -137,20 +137,20 @@ version: v1alpha1
 kind: Test
 ```
 
-## Handler Configuration
+## Handler configuration
 
 Handler configuration are used in the following fields of Controller and Webhook configuration.
 
-- '.controllers[\*].reconciler'
-- '.controllers[\*].finalizer'
-- '.webhook.handlers[\*].validator'
-- '.webhook.handlers[\*].mutator'
+- `.controllers[*].reconciler`
+- `.controllers[*].finalizer`
+- `.webhook.handlers[*].validator`
+- `.webhook.handlers[*].mutator`
 
 Handler type can be choosed from 'exec' or 'http'. 'exec' executes the specified command and uses its output. 'http' sends the request to the specified URL and uses the response.
 
 Using both handler type at the same time is not allowed.
 
-```
+```yaml
 exec:
   # Required: The path to command.
   command: "/bin/controller"
