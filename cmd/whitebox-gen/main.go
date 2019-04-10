@@ -22,6 +22,8 @@ func main() {
 	switch os.Args[1] {
 	case "manifest":
 		err = manifest(os.Args[2:])
+	case "token":
+		err = token(os.Args[2:])
 	default:
 		fmt.Print(usage)
 		os.Exit(1)

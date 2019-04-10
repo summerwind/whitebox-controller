@@ -322,6 +322,7 @@ type WebhookHandlerConfig struct {
 	Resource  schema.GroupVersionKind `json:"resource"`
 	Validator *HandlerConfig          `json:"validator"`
 	Mutator   *HandlerConfig          `json:"mutator"`
+	Injector  *InjectorConfig         `json:"injector"`
 }
 
 func (c *WebhookHandlerConfig) Validate() error {
@@ -337,4 +338,18 @@ func (c *WebhookHandlerConfig) Validate() error {
 	}
 
 	return nil
+}
+
+type InjectorConfig struct {
+	HandlerConfig
+	VerifyKeyFile string `json:"verifyKeyFile"`
+}
+
+func (c *InjectorConfig) Validate() error {
+	_, err := os.Stat(c.VerifyKeyFile)
+	if err != nil {
+		return fmt.Errorf("failed to read verification key file: %v", err)
+	}
+
+	return c.HandlerConfig.Validate()
 }
