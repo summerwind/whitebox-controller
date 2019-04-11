@@ -2,7 +2,7 @@ version: '2'
 
 vars:
   NAME: whitebox-controller
-  VERSION: 0.2.0
+  VERSION: 0.3.0
   COMMIT: {sh: git rev-parse --verify HEAD}
   BUILD_FLAGS: -ldflags "-X main.VERSION={{.VERSION}} -X main.COMMIT={{.COMMIT}}"
 
