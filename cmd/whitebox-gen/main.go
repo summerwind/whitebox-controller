@@ -8,7 +8,8 @@ import (
 var usage = `usage: whitebox-gen <command> [<args>]
 
 Commands:
-  manifest Generate manifest based on config file
+  manifest  Generate manifest based on config file
+  token     Generate token for injection webhook
 `
 
 func main() {
