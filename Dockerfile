@@ -17,11 +17,12 @@ WORKDIR /workspace
 
 RUN go vet ./... && go test -v ./...
 RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} ./cmd/whitebox-controller
+RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} ./cmd/whitebox-gen
 
 ###################
 
 FROM scratch
 
-COPY --from=builder /workspace/whitebox-controller /bin/whitebox-controller
+COPY --from=builder /workspace/whitebox-* /bin/
 
 ENTRYPOINT ["/bin/whitebox-controller"]
