@@ -60,8 +60,7 @@ func genCRD(res schema.GroupVersionKind) (string, error) {
 }
 
 func crd(c *config.Config) ([]string, error) {
-	crds := []string{}
-	checklist := map[string]bool{}
+	checklist := map[string]string{}
 
 	for _, ctrl := range c.Controllers {
 		if ctrl.Resource.Empty() {
@@ -78,8 +77,7 @@ func crd(c *config.Config) ([]string, error) {
 			return nil, err
 		}
 
-		crds = append(crds, m)
-		checklist[ctrl.Resource.String()] = true
+		checklist[ctrl.Resource.String()] = m
 	}
 
 	if c.Webhook != nil {
@@ -98,9 +96,13 @@ func crd(c *config.Config) ([]string, error) {
 				return nil, err
 			}
 
-			crds = append(crds, m)
-			checklist[h.Resource.String()] = true
+			checklist[h.Resource.String()] = m
 		}
+	}
+
+	crds := []string{}
+	for _, crd := range checklist {
+		crds = append(crds, crd)
 	}
 
 	return crds, nil

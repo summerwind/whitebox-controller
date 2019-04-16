@@ -73,9 +73,8 @@ func genWebhookConfig(data WebhookData) (string, error) {
 func webhook(c *config.WebhookConfig, name, namespace string, caBundle []byte) ([]string, error) {
 	caBundleStr := base64.StdEncoding.EncodeToString(caBundle)
 
-	manifests := []string{}
-	vchecklist := map[string]bool{}
-	mchecklist := map[string]bool{}
+	vchecklist := map[string]string{}
+	mchecklist := map[string]string{}
 
 	for _, h := range c.Handlers {
 		if h.Resource.Empty() {
@@ -103,8 +102,7 @@ func webhook(c *config.WebhookConfig, name, namespace string, caBundle []byte) (
 				return nil, err
 			}
 
-			manifests = append(manifests, m)
-			vchecklist[h.Resource.String()] = true
+			vchecklist[h.Resource.String()] = m
 		}
 
 		if h.Mutator != nil && !mok {
@@ -116,9 +114,16 @@ func webhook(c *config.WebhookConfig, name, namespace string, caBundle []byte) (
 				return nil, err
 			}
 
-			manifests = append(manifests, m)
-			mchecklist[h.Resource.String()] = true
+			mchecklist[h.Resource.String()] = m
 		}
+	}
+
+	manifests := []string{}
+	for _, v := range vchecklist {
+		manifests = append(manifests, v)
+	}
+	for _, m := range mchecklist {
+		manifests = append(manifests, m)
 	}
 
 	return manifests, nil
