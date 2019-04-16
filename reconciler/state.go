@@ -18,36 +18,11 @@ type State struct {
 	Events     []StateEvent                            `json:"events"`
 }
 
-func NewState(object *unstructured.Unstructured, deps, refs []*unstructured.Unstructured) *State {
-	dependents := map[string][]*unstructured.Unstructured{}
-	references := map[string][]*unstructured.Unstructured{}
-
-	for _, dep := range deps {
-		arg := getKindArg(dep.GroupVersionKind())
-
-		_, ok := dependents[arg]
-		if !ok {
-			dependents[arg] = []*unstructured.Unstructured{}
-		}
-
-		dependents[arg] = append(dependents[arg], dep)
-	}
-
-	for _, ref := range refs {
-		arg := getKindArg(ref.GroupVersionKind())
-
-		_, ok := references[arg]
-		if !ok {
-			references[arg] = []*unstructured.Unstructured{}
-		}
-
-		references[arg] = append(references[arg], ref)
-	}
-
+func NewState(object *unstructured.Unstructured, deps, refs map[string][]*unstructured.Unstructured) *State {
 	return &State{
 		Object:     object,
-		Dependents: dependents,
-		References: references,
+		Dependents: deps,
+		References: refs,
 		Events:     []StateEvent{},
 	}
 }

@@ -240,10 +240,13 @@ func (r *Reconciler) IsObserver() bool {
 
 // getDependents returns a list of dependent resources with
 // an specified owner reference.
-func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef metav1.OwnerReference) ([]*unstructured.Unstructured, error) {
-	dependents := []*unstructured.Unstructured{}
+func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef metav1.OwnerReference) (map[string][]*unstructured.Unstructured, error) {
+	dependents := map[string][]*unstructured.Unstructured{}
 
 	for _, dep := range r.config.Dependents {
+		key := getKindArg(dep)
+		dependents[key] = []*unstructured.Unstructured{}
+
 		dependentList := &unstructured.UnstructuredList{}
 		dependentList.SetGroupVersionKind(dep)
 
@@ -258,7 +261,7 @@ func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef meta
 				if !reflect.DeepEqual(ref, ownerRef) {
 					continue
 				}
-				dependents = append(dependents, &dependentList.Items[i])
+				dependents[key] = append(dependents[key], &dependentList.Items[i])
 			}
 		}
 	}
@@ -268,13 +271,16 @@ func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef meta
 
 // getReferences returns a list of reference resources based on
 // spcified field path.
-func (r *Reconciler) getReferences(res *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
-	refs := []*unstructured.Unstructured{}
+func (r *Reconciler) getReferences(res *unstructured.Unstructured) (map[string][]*unstructured.Unstructured, error) {
+	refs := map[string][]*unstructured.Unstructured{}
 
 	for _, ref := range r.config.References {
 		if ref.NameFieldPath == "" {
 			continue
 		}
+
+		key := getKindArg(ref.GroupVersionKind)
+		refs[key] = []*unstructured.Unstructured{}
 
 		refNames, err := getNamesFromField(ref.NameFieldPath, res)
 		if err != nil {
@@ -301,7 +307,7 @@ func (r *Reconciler) getReferences(res *unstructured.Unstructured) ([]*unstructu
 				return nil, fmt.Errorf("Failed to get a resource '%s/%s': %v", res.GetNamespace(), refNames[i], err)
 			}
 
-			refs = append(refs, refRes)
+			refs[key] = append(refs[key], refRes)
 		}
 	}
 
