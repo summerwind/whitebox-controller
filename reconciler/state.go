@@ -1,61 +1,151 @@
 package reconciler
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 
+	"github.com/summerwind/whitebox-controller/config"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type State struct {
-	Resource   *unstructured.Unstructured  `json:"resource"`
-	Dependents []unstructured.Unstructured `json:"dependents"`
-	References []unstructured.Unstructured `json:"references"`
-	Events     []StateEvent                `json:"events"`
+	Object     *unstructured.Unstructured              `json:"object"`
+	Dependents map[string][]*unstructured.Unstructured `json:"dependents"`
+	References map[string][]*unstructured.Unstructured `json:"references"`
+	Events     []StateEvent                            `json:"events"`
 }
 
-func NewState(resource *unstructured.Unstructured, dependents, refs []unstructured.Unstructured) *State {
+func NewState(object *unstructured.Unstructured, deps, refs []*unstructured.Unstructured) *State {
+	dependents := map[string][]*unstructured.Unstructured{}
+	references := map[string][]*unstructured.Unstructured{}
+
+	for _, dep := range deps {
+		arg := getKindArg(dep.GroupVersionKind())
+
+		_, ok := dependents[arg]
+		if !ok {
+			dependents[arg] = []*unstructured.Unstructured{}
+		}
+
+		dependents[arg] = append(dependents[arg], dep)
+	}
+
+	for _, ref := range refs {
+		arg := getKindArg(ref.GroupVersionKind())
+
+		_, ok := references[arg]
+		if !ok {
+			references[arg] = []*unstructured.Unstructured{}
+		}
+
+		references[arg] = append(references[arg], ref)
+	}
+
 	return &State{
-		Resource:   resource,
+		Object:     object,
 		Dependents: dependents,
-		References: refs,
+		References: references,
 		Events:     []StateEvent{},
 	}
 }
 
-func (s *State) Diff(new *State) ([]unstructured.Unstructured, []unstructured.Unstructured, []unstructured.Unstructured) {
-	created := []unstructured.Unstructured{}
-	updated := []unstructured.Unstructured{}
-	deleted := []unstructured.Unstructured{}
+func (s *State) Validate(new *State, c *config.ControllerConfig) error {
+	if new.Object != nil {
+		namespace := new.Object.GetNamespace()
 
-	if new.Resource == nil {
-		deleted = append(deleted, *new.Resource)
-	} else if !reflect.DeepEqual(s.Resource, new.Resource) {
-		updated = append(updated, *new.Resource)
-	}
-
-	for _, dep := range s.Dependents {
-		found := false
-
-		for _, newDep := range new.Dependents {
-			if dep.GetSelfLink() != newDep.GetSelfLink() {
-				continue
-			}
-
-			found = true
-			if !reflect.DeepEqual(dep, newDep) {
-				updated = append(updated, dep)
-			}
-			break
+		if !reflect.DeepEqual(new.Object.GroupVersionKind(), s.Object.GroupVersionKind()) {
+			return errors.New("resource: group/version/kind does not match")
+		}
+		if namespace != s.Object.GetNamespace() {
+			return errors.New("resource: namespace does not match")
+		}
+		if new.Object.GetName() != s.Object.GetName() {
+			return errors.New("resource: name does not match")
 		}
 
-		if !found {
-			deleted = append(deleted, dep)
+		for key := range new.Dependents {
+			for i, dep := range new.Dependents[key] {
+				if dep.GetNamespace() != namespace {
+					return fmt.Errorf("dependents[%s][%d]: namespace does not match", key, i)
+				}
+			}
 		}
 	}
 
-	for _, newDep := range new.Dependents {
-		if newDep.GetSelfLink() == "" {
-			created = append(created, newDep)
+	for key := range new.Dependents {
+		if len(c.Dependents) == 0 {
+			return errors.New("no dependents specified in the configuration")
+		}
+
+		matched := false
+		for _, gvk := range c.Dependents {
+			if key == getKindArg(gvk) {
+				matched = true
+				break
+			}
+		}
+
+		if !matched {
+			return fmt.Errorf("dependents[%s]: unexpected group/version/kind", key)
+		}
+	}
+
+	return nil
+}
+
+func (s *State) Diff(new *State) ([]*unstructured.Unstructured, []*unstructured.Unstructured, []*unstructured.Unstructured) {
+	created := []*unstructured.Unstructured{}
+	updated := []*unstructured.Unstructured{}
+	deleted := []*unstructured.Unstructured{}
+
+	if new.Object == nil {
+		deleted = append(deleted, new.Object)
+	} else if !reflect.DeepEqual(s.Object, new.Object) {
+		updated = append(updated, new.Object)
+	}
+
+	for key := range s.Dependents {
+		_, ok := new.Dependents[key]
+		if !ok {
+			deleted = append(deleted, s.Dependents[key]...)
+		}
+
+		for i := range s.Dependents[key] {
+			found := false
+			dep := s.Dependents[key][i]
+
+			for j := range new.Dependents[key] {
+				newDep := new.Dependents[key][j]
+				if dep.GetSelfLink() != newDep.GetSelfLink() {
+					continue
+				}
+
+				found = true
+				if !reflect.DeepEqual(dep, newDep) {
+					updated = append(updated, dep)
+				}
+				break
+			}
+
+			if !found {
+				deleted = append(deleted, dep)
+			}
+		}
+	}
+
+	for key := range new.Dependents {
+		_, ok := s.Dependents[key]
+		if !ok {
+			created = append(created, new.Dependents[key]...)
+		}
+
+		for i := range new.Dependents[key] {
+			newDep := new.Dependents[key][i]
+			if newDep.GetSelfLink() == "" {
+				created = append(created, newDep)
+			}
 		}
 	}
 
@@ -73,4 +163,12 @@ func (e *StateEvent) Empty() bool {
 		return true
 	}
 	return false
+}
+
+func getKindArg(gvk schema.GroupVersionKind) string {
+	if gvk.Group == "" {
+		return fmt.Sprintf("%s.%s", gvk.Kind, gvk.Version)
+	}
+
+	return fmt.Sprintf("%s.%s.%s", gvk.Kind, gvk.Version, gvk.Group)
 }

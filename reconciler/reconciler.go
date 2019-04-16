@@ -133,22 +133,22 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	err = r.validateState(state, newState)
+	err = state.Validate(newState, r.config)
 	if err != nil {
 		log.Error(err, "Ignored due to the new state is invalid", "namespace", namespace, "name", name)
 		return reconcile.Result{}, nil
 	}
 
 	if finalized {
-		err := r.unsetFinalizer(newState.Resource)
+		err := r.unsetFinalizer(newState.Object)
 		if err != nil {
-			log.Error(err, "Failed to unset finalizer from resource metadata", "namespace", namespace, "name", name)
+			log.Error(err, "Failed to unset finalizer from object metadata", "namespace", namespace, "name", name)
 			return reconcile.Result{}, err
 		}
 	} else if r.finalizer != nil {
-		err := r.setFinalizer(newState.Resource)
+		err := r.setFinalizer(newState.Object)
 		if err != nil {
-			log.Error(err, "Failed to set finalizer from resource metadata", "namespace", namespace, "name", name)
+			log.Error(err, "Failed to set finalizer from object metadata", "namespace", namespace, "name", name)
 			return reconcile.Result{}, err
 		}
 	}
@@ -159,7 +159,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		log.Info("Creating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 
 		res.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
-		err = r.Create(context.TODO(), &res)
+		err = r.Create(context.TODO(), res)
 		if err != nil {
 			log.Error(err, "Failed to create a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
@@ -173,7 +173,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		log.Info("Updating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 
-		err = r.Update(context.TODO(), &res)
+		err = r.Update(context.TODO(), res)
 		if err != nil {
 			log.Error(err, "Failed to update a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
@@ -184,7 +184,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	for _, res := range deleted {
 		log.Info("Deleting resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 
-		err = r.Delete(context.TODO(), &res)
+		err = r.Delete(context.TODO(), res)
 		if err != nil {
 			log.Error(err, "Failed to delete a resource", "namespace", res.GetNamespace(), "name", res.GetName())
 			return reconcile.Result{}, err
@@ -240,8 +240,8 @@ func (r *Reconciler) IsObserver() bool {
 
 // getDependents returns a list of dependent resources with
 // an specified owner reference.
-func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef metav1.OwnerReference) ([]unstructured.Unstructured, error) {
-	dependents := []unstructured.Unstructured{}
+func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef metav1.OwnerReference) ([]*unstructured.Unstructured, error) {
+	dependents := []*unstructured.Unstructured{}
 
 	for _, dep := range r.config.Dependents {
 		dependentList := &unstructured.UnstructuredList{}
@@ -252,13 +252,13 @@ func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef meta
 			return nil, fmt.Errorf("Failed to get a list for dependent resource: %v", err)
 		}
 
-		for _, item := range dependentList.Items {
-			depOwnerRefs := item.GetOwnerReferences()
+		for i := range dependentList.Items {
+			depOwnerRefs := dependentList.Items[i].GetOwnerReferences()
 			for _, ref := range depOwnerRefs {
 				if !reflect.DeepEqual(ref, ownerRef) {
 					continue
 				}
-				dependents = append(dependents, item)
+				dependents = append(dependents, &dependentList.Items[i])
 			}
 		}
 	}
@@ -268,8 +268,8 @@ func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef meta
 
 // getReferences returns a list of reference resources based on
 // spcified field path.
-func (r *Reconciler) getReferences(res *unstructured.Unstructured) ([]unstructured.Unstructured, error) {
-	refs := []unstructured.Unstructured{}
+func (r *Reconciler) getReferences(res *unstructured.Unstructured) ([]*unstructured.Unstructured, error) {
+	refs := []*unstructured.Unstructured{}
 
 	for _, ref := range r.config.References {
 		if ref.NameFieldPath == "" {
@@ -301,53 +301,11 @@ func (r *Reconciler) getReferences(res *unstructured.Unstructured) ([]unstructur
 				return nil, fmt.Errorf("Failed to get a resource '%s/%s': %v", res.GetNamespace(), refNames[i], err)
 			}
 
-			refs = append(refs, *refRes)
+			refs = append(refs, refRes)
 		}
 	}
 
 	return refs, nil
-}
-
-func (r *Reconciler) validateState(current, new *State) error {
-	if new.Resource != nil {
-		namespace := new.Resource.GetNamespace()
-
-		if !reflect.DeepEqual(new.Resource.GroupVersionKind(), r.config.Resource) {
-			return errors.New("resource: group/version/kind does not match")
-		}
-		if namespace != current.Resource.GetNamespace() {
-			return errors.New("resource: namespace does not match")
-		}
-		if new.Resource.GetName() != current.Resource.GetName() {
-			return errors.New("resource: name does not match")
-		}
-
-		for i, dep := range new.Dependents {
-			if dep.GetNamespace() != namespace {
-				return fmt.Errorf("dependents[%d]: namespace does not match", i)
-			}
-		}
-	}
-
-	for i, dep := range new.Dependents {
-		if len(r.config.Dependents) == 0 {
-			return errors.New("no dependents specified in the configuration")
-		}
-
-		matched := false
-		for _, gvk := range r.config.Dependents {
-			if reflect.DeepEqual(dep.GroupVersionKind(), gvk) {
-				matched = true
-				break
-			}
-		}
-
-		if !matched {
-			return fmt.Errorf("dependents[%d]: unexpected group/version/kind", i)
-		}
-	}
-
-	return nil
 }
 
 // setFinalizer adds it's finalizer name to resource's metadata.
