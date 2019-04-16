@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/summerwind/whitebox-controller/config"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -167,8 +168,8 @@ func (e *StateEvent) Empty() bool {
 
 func getKindArg(gvk schema.GroupVersionKind) string {
 	if gvk.Group == "" {
-		return fmt.Sprintf("%s.%s", gvk.Kind, gvk.Version)
+		return strings.ToLower(fmt.Sprintf("%s.%s", gvk.Kind, gvk.Version))
 	}
 
-	return fmt.Sprintf("%s.%s.%s", gvk.Kind, gvk.Version, gvk.Group)
+	return strings.ToLower(fmt.Sprintf("%s.%s.%s", gvk.Kind, gvk.Version, gvk.Group))
 }
