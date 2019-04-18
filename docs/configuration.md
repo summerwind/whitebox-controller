@@ -28,6 +28,9 @@ controllers:
   - group: "apps"
     version: v1
     kind: Deployment
+    # Optional: If you set this value to true, reconciler will not set
+    # the owner reference to the dependent resource.
+    orphan: false
 
   # Optional: Resources referenced by a specified field of the resource.
   # The contents of the resources specified here are passed when the
