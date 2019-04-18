@@ -1,18 +1,30 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: noop-controller
+  name: containerset-controller
   namespace: kube-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: noop-controller
+  name: containerset-controller
 rules:
 - apiGroups:
   - whitebox.summerwind.github.io
   resources:
-  - noop
+  - containerset
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apps 
+  resources:
+  - deployments
   verbs:
   - get
   - list
@@ -32,40 +44,40 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: noop-controller
+  name: containerset-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: noop-controller
+  name: containerset-controller
 subjects:
 - kind: ServiceAccount
-  name: noop-controller
+  name: containerset-controller
   namespace: kube-system
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: noop-controller
+  name: containerset-controller
   namespace: kube-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: noop-controller
+      app: containerset-controller
   template:
     metadata:
       labels:
-        app: noop-controller
+        app: containerset-controller
     spec:
       containers:
-      - name: noop-controller
-        image: summerwind/noop-controller:latest
+      - name: containerset-controller
+        image: summerwind/containerset-controller:latest
         imagePullPolicy: Always
         volumeMounts:
         - name: secret-volume
           mountPath: /etc/tls
         ports:
-        - containerPort: 8001
+        - containerPort: 443
         resources:
           requests:
             cpu: 100m
@@ -73,24 +85,24 @@ spec:
       volumes:
       - name: secret-volume
         secret:
-          secretName: noop-controller
+          secretName: containerset-controller
           items:
           - key: server.pem
             path: server.pem
           - key: server-key.pem
             path: server-key.pem
-      serviceAccountName: noop-controller
+      serviceAccountName: containerset-controller
       terminationGracePeriodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: noop-controller
+  name: containerset-controller
   namespace: kube-system
 spec:
   selector:
-    app: noop-controller
+    app: containerset-controller
   ports:
   - protocol: TCP
     port: 443
-    targetPort: 8001
+    targetPort: 443

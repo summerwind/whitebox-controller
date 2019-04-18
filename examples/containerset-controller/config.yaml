@@ -1,9 +1,13 @@
 controllers:
-- name: noop
+- name: containerset-controller
   resource:
     group: whitebox.summerwind.github.io
     version: v1alpha1
-    kind: Noop
+    kind: ContainerSet
+  dependents:
+  - group: apps
+    version: v1
+    kind: Deployment
   reconciler:
     exec:
       command: /bin/reconciler
@@ -13,7 +17,7 @@ controllers:
     interval: 30m
 
 webhook:
-  port: 8001
+  port: 443
   tls:
     certFile: /etc/tls/server.pem
     keyFile: /etc/tls/server-key.pem
@@ -21,7 +25,7 @@ webhook:
   - resource:
       group: whitebox.summerwind.github.io
       version: v1alpha1
-      kind: Noop
+      kind: ContainerSet
     validator:
       exec:
         command: /bin/validator

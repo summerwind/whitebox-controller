@@ -23,7 +23,7 @@ cat << EOL
 apiVersion: v1
 kind: Secret
 metadata:
-  name: noop-controller
+  name: containerset-controller
   namespace: kube-system
 type: Opaque
 data:

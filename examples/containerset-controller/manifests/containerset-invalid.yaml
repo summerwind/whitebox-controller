@@ -1,0 +1,6 @@
+apiVersion: whitebox.summerwind.github.io/v1alpha1
+kind: ContainerSet
+metadata:
+  name: containerset-example-invalid
+spec:
+  replicas: 1

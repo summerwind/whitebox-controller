@@ -1,0 +1,7 @@
+apiVersion: whitebox.summerwind.github.io/v1alpha1
+kind: ContainerSet
+metadata:
+  name: containerset-example
+spec:
+  replicas: 2
+  image: nginx:latest

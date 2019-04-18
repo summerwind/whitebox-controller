@@ -1,7 +1,7 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: noop.whitebox.summerwind.github.io
+  name: containerset.whitebox.summerwind.github.io
 spec:
   group: whitebox.summerwind.github.io
   versions:
@@ -9,9 +9,9 @@ spec:
     served: true
     storage: true
   names:
-    kind: Noop
-    plural: noop
-    singular: noop
+    kind: ContainerSet
+    plural: containerset
+    singular: containerset
     shortNames:
     - nop
   scope: Namespaced

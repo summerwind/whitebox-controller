@@ -1,7 +1,7 @@
 {
-  "CN": "noop-controller.kube-system.svc",
+  "CN": "containerset-controller.kube-system.svc",
   "hosts": [
-    "noop-controller.kube-system.svc",
+    "containerset-controller.kube-system.svc",
     "localhost",
     "127.0.0.1"
   ],
