@@ -57,8 +57,8 @@ func (s *State) Validate(new *State, c *config.ControllerConfig) error {
 		}
 
 		matched := false
-		for _, gvk := range c.Dependents {
-			if key == getKindArg(gvk) {
+		for _, res := range c.Dependents {
+			if key == getKindArg(res.GroupVersionKind) {
 				matched = true
 				break
 			}
@@ -129,8 +129,18 @@ func (s *State) Diff(new *State) ([]*unstructured.Unstructured, []*unstructured.
 	return created, updated, deleted
 }
 
-func (s *State) SetOwnerReference(ownerRef metav1.OwnerReference) {
-	for _, deps := range s.Dependents {
+func (s *State) SetOwnerReference(ownerRef metav1.OwnerReference, c *config.ControllerConfig) {
+	orphans := map[string]bool{}
+
+	for _, dep := range c.Dependents {
+		orphans[getKindArg(dep.GroupVersionKind)] = dep.Orphan
+	}
+
+	for key, deps := range s.Dependents {
+		if orphans[key] {
+			continue
+		}
+
 		for _, dep := range deps {
 			dep.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 		}

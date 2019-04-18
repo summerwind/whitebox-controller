@@ -45,7 +45,7 @@ func New(c *config.ControllerConfig, mgr manager.Manager) (*controller.Controlle
 
 	for _, dep := range c.Dependents {
 		depObj := &unstructured.Unstructured{}
-		depObj.SetGroupVersionKind(dep)
+		depObj.SetGroupVersionKind(dep.GroupVersionKind)
 
 		err = ctrl.Watch(&source.Kind{Type: depObj}, &handler.EnqueueRequestForOwner{
 			IsController: true,

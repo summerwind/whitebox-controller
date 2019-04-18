@@ -153,7 +153,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	newState.SetOwnerReference(ownerRef)
+	newState.SetOwnerReference(ownerRef, r.config)
 
 	created, updated, deleted := state.Diff(newState)
 
@@ -241,11 +241,11 @@ func (r *Reconciler) getDependents(res *unstructured.Unstructured, ownerRef meta
 	dependents := map[string][]*unstructured.Unstructured{}
 
 	for _, dep := range r.config.Dependents {
-		key := getKindArg(dep)
+		key := getKindArg(dep.GroupVersionKind)
 		dependents[key] = []*unstructured.Unstructured{}
 
 		dependentList := &unstructured.UnstructuredList{}
-		dependentList.SetGroupVersionKind(dep)
+		dependentList.SetGroupVersionKind(dep.GroupVersionKind)
 
 		err := r.List(context.TODO(), dependentList, client.InNamespace(res.GetNamespace()))
 		if err != nil {

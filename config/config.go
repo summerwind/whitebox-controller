@@ -62,12 +62,12 @@ func (c *Config) Validate() error {
 
 type ControllerConfig struct {
 	Name       string
-	Resource   schema.GroupVersionKind   `json:"resource"`
-	Dependents []schema.GroupVersionKind `json:"dependents"`
-	References []ReferenceConfig         `json:"references"`
-	Reconciler *ReconcilerConfig         `json:"reconciler,omitempty"`
-	Finalizer  *HandlerConfig            `json:"finalizer,omitempty"`
-	Syncer     *SyncerConfig             `json:"syncer,omitempty"`
+	Resource   schema.GroupVersionKind `json:"resource"`
+	Dependents []DependentConfig       `json:"dependents"`
+	References []ReferenceConfig       `json:"references"`
+	Reconciler *ReconcilerConfig       `json:"reconciler,omitempty"`
+	Finalizer  *HandlerConfig          `json:"finalizer,omitempty"`
+	Syncer     *SyncerConfig           `json:"syncer,omitempty"`
 }
 
 func (c *ControllerConfig) Validate() error {
@@ -113,6 +113,19 @@ func (c *ControllerConfig) Validate() error {
 		if err != nil {
 			return fmt.Errorf("syncer: %v", err)
 		}
+	}
+
+	return nil
+}
+
+type DependentConfig struct {
+	schema.GroupVersionKind
+	Orphan bool `json:"orphan"`
+}
+
+func (c *DependentConfig) Validate() error {
+	if c.GroupVersionKind.Empty() {
+		return errors.New("resource is empty")
 	}
 
 	return nil
