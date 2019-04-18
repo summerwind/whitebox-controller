@@ -21,6 +21,7 @@ First install the `whitebox-controller` command. You can download the binary fro
 $ curl -L -O https://github.com/summerwind/whitebox-controller/releases/latest/download/whitebox-controller-linux-amd64.tar.gz
 $ tar zxvf whitebox-controller-linux-amd64.tar.gz
 $ mv whitebox-controller /usr/local/bin/
+$ mv whitebox-gen /usr/local/bin/
 ```
 
 **For macOS**
@@ -29,6 +30,7 @@ $ mv whitebox-controller /usr/local/bin/
 $ curl -L -O https://github.com/summerwind/whitebox-controller/releases/latest/download/whitebox-controller-darwin-amd64.tar.gz
 $ tar zxvf whitebox-controller-darwin-amd64.tar.gz
 $ mv whitebox-controller /usr/local/bin/
+$ mv whitebox-gen /usr/local/bin/
 ```
 
 ## Creating configuration file
@@ -119,7 +121,7 @@ Before implementing your reconciler, let's understand the inputs and outputs. Wh
 
 ```
 {
-  "resource": {
+  "object": {
     "apiVersion": "whitebox.summerwind.github.io/v1alpha1",
     "kind": "Hello",
     "metadata": {
@@ -145,7 +147,7 @@ The command should read the resource state from stdin, modify its state if neces
 
 ```
 {
-  "resource": {
+  "object": {
     "apiVersion": "whitebox.summerwind.github.io/v1alpha1",
     "kind": "Hello",
     "metadata": {
@@ -182,10 +184,10 @@ $ vim reconciler.sh
 STATE=`cat -`
 
 # Write message to stder
-echo "${STATE}" | jq -r '.resource.spec.message' >&2
+echo "${STATE}" | jq -r '.object.spec.message' >&2
 
 # Set `.status.phase` field to the resource
-NEW_STATE=`echo "${STATE}" | jq -r '.resource.status.phase = "completed"'`
+NEW_STATE=`echo "${STATE}" | jq -r '.object.status.phase = "completed"'`
 
 # Write new state to stdio.
 echo "${NEW_STATE}"
@@ -209,7 +211,7 @@ $ whitebox-controller
 [exec] stdin: {"resource":{"apiVersion":"whitebox.summerwind.github.io/v1alpha1","kind":"Hello","metadata":{"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"whitebox.summerwind.github.io/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"},"creationTimestamp":"2019-04-01T05:58:29Z","generation":1,"name":"hello","namespace":"default","resourceVersion":"14427301","selfLink":"/apis/whitebox.summerwind.github.io/v1alpha1/namespaces/default/hello/hello","uid":"2c2673ab-5443-11e9-afad-42010a8c01f3"},"spec":{"message":"Hello World"},"status":{"phase":"completed"}},"dependents":[],"references":[],"events":[]}
 [exec] stderr: Hello World
 [exec] stdout: {
-  "resource": {
+  "object": {
     "apiVersion": "whitebox.summerwind.github.io/v1alpha1",
     "kind": "Hello",
     "metadata": {
