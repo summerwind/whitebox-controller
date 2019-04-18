@@ -100,7 +100,7 @@ func (s *State) Diff(new *State) ([]*unstructured.Unstructured, []*unstructured.
 
 				found = true
 				if !reflect.DeepEqual(dep, newDep) {
-					updated = append(updated, dep)
+					updated = append(updated, newDep)
 				}
 				break
 			}
