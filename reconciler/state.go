@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/summerwind/whitebox-controller/config"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -126,6 +127,14 @@ func (s *State) Diff(new *State) ([]*unstructured.Unstructured, []*unstructured.
 	}
 
 	return created, updated, deleted
+}
+
+func (s *State) SetOwnerReference(ownerRef metav1.OwnerReference) {
+	for _, deps := range s.Dependents {
+		for _, dep := range deps {
+			dep.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
+		}
+	}
 }
 
 type StateEvent struct {

@@ -153,12 +153,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
+	newState.SetOwnerReference(ownerRef)
+
 	created, updated, deleted := state.Diff(newState)
 
 	for _, res := range created {
 		log.Info("Creating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 
-		res.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
 		err = r.Create(context.TODO(), res)
 		if err != nil {
 			log.Error(err, "Failed to create a resource", "namespace", res.GetNamespace(), "name", res.GetName())
@@ -167,10 +168,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	for _, res := range updated {
-		if res.GetSelfLink() != instance.GetSelfLink() {
-			res.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
-		}
-
 		log.Info("Updating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
 
 		err = r.Update(context.TODO(), res)
