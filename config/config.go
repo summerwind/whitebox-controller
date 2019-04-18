@@ -248,24 +248,11 @@ type HTTPHanlderTLSConfig struct {
 
 func (c *HTTPHanlderTLSConfig) Validate() error {
 	if c.CertFile != "" {
-		_, err := os.Stat(c.CertFile)
-		if err != nil {
-			return fmt.Errorf("failed to read cert file: %v", err)
-		}
+		return errors.New("cert file must be specified")
 	}
 
 	if c.KeyFile != "" {
-		_, err := os.Stat(c.KeyFile)
-		if err != nil {
-			return fmt.Errorf("failed to read key file: %v", err)
-		}
-	}
-
-	if c.CACertFile != "" {
-		_, err := os.Stat(c.CACertFile)
-		if err != nil {
-			return fmt.Errorf("failed to read ca cert file: %v", err)
-		}
+		return errors.New("key file must be specified")
 	}
 
 	return nil
@@ -317,15 +304,6 @@ func (c *WebhookTLSConfig) Validate() error {
 	}
 	if c.KeyFile == "" {
 		return errors.New("key file must be specified")
-	}
-
-	_, err := os.Stat(c.CertFile)
-	if err != nil {
-		return fmt.Errorf("failed to read cert file: %v", err)
-	}
-	_, err = os.Stat(c.KeyFile)
-	if err != nil {
-		return fmt.Errorf("failed to read key file: %v", err)
 	}
 
 	return nil
