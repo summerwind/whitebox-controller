@@ -36,14 +36,16 @@ func NewServer(c *config.WebhookConfig, mgr manager.Manager) (*Server, error) {
 	mux := http.NewServeMux()
 
 	for _, hc := range c.Handlers {
+		res := hc.Resource
+		basePath := fmt.Sprintf("/%s/%s/%s", res.Group, res.Version, strings.ToLower(res.Kind))
+
 		if hc.Validator != nil {
 			hook, err := newValidationHook(hc.Validator)
 			if err != nil {
 				return nil, err
 			}
 
-			res := hc.Resource
-			p := fmt.Sprintf("/%s.%s/%s/validate", strings.ToLower(res.Kind), res.Group, res.Version)
+			p := fmt.Sprintf("%s/validate", basePath)
 
 			log.Info("Adding validation hook", "path", p)
 			mux.Handle(p, hook)
@@ -55,8 +57,7 @@ func NewServer(c *config.WebhookConfig, mgr manager.Manager) (*Server, error) {
 				return nil, err
 			}
 
-			res := hc.Resource
-			p := fmt.Sprintf("/%s.%s/%s/mutate", strings.ToLower(res.Kind), res.Group, res.Version)
+			p := fmt.Sprintf("%s/mutate", basePath)
 
 			log.Info("Adding mutation hook", "path", p)
 			mux.Handle(p, hook)
@@ -68,8 +69,7 @@ func NewServer(c *config.WebhookConfig, mgr manager.Manager) (*Server, error) {
 				return nil, err
 			}
 
-			res := hc.Resource
-			p := fmt.Sprintf("/%s.%s/%s/inject", strings.ToLower(res.Kind), res.Group, res.Version)
+			p := fmt.Sprintf("%s/inject", basePath)
 
 			log.Info("Adding injection hook", "path", p)
 			mux.Handle(p, hook)

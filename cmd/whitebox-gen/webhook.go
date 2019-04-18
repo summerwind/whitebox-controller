@@ -40,7 +40,7 @@ webhooks:
     service:
       name: {{.ServiceName}}
       namespace: {{.ServiceNamespace}}
-      path: /{{.Plural}}.{{.Group}}/{{.Version}}/{{.ServicePath}}
+      path: /{{.Group}}/{{.Version}}/{{.Plural}}/{{.ServicePath}}
     caBundle: {{.CABundle}}
 `
 
