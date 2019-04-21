@@ -14,3 +14,4 @@ This controller executes processing such as reconciliation or validation of reso
 
 - [Getting Started](docs/getting-started.md)
 - [Configuration](docs/configuration.md)
+- [Implementing controller](docs/implementing-controller.md)
