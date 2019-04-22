@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	kconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -38,7 +39,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	mgr, err := manager.New(kc, manager.Options{})
+	opts := manager.Options{}
+	if c.Metrics != nil {
+		opts.MetricsBindAddress = fmt.Sprintf("%s:%d", c.Metrics.Host, c.Metrics.Port)
+	}
+
+	mgr, err := manager.New(kc, opts)
 	if err != nil {
 		log.Error(err, "could not create manager")
 		os.Exit(1)

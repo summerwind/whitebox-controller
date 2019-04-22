@@ -20,6 +20,7 @@ const (
 type Config struct {
 	Controllers []*ControllerConfig `json:"controllers"`
 	Webhook     *WebhookConfig      `json:"webhook,omitempty"`
+	Metrics     *MetricsConfig      `json:"metrics,omitempty"`
 }
 
 func LoadFile(p string) (*Config, error) {
@@ -54,6 +55,13 @@ func (c *Config) Validate() error {
 		err := c.Webhook.Validate()
 		if err != nil {
 			return fmt.Errorf("webhook: %v", err)
+		}
+	}
+
+	if c.Metrics != nil {
+		err := c.Metrics.Validate()
+		if err != nil {
+			return fmt.Errorf("metrics: %v", err)
 		}
 	}
 
@@ -305,7 +313,6 @@ func (c *WebhookTLSConfig) Validate() error {
 	if c.KeyFile == "" {
 		return errors.New("key file must be specified")
 	}
-
 	return nil
 }
 
@@ -343,4 +350,16 @@ func (c *InjectorConfig) Validate() error {
 	}
 
 	return c.HandlerConfig.Validate()
+}
+
+type MetricsConfig struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
+}
+
+func (c *MetricsConfig) Validate() error {
+	if c.Port == 0 {
+		return errors.New("port must be specified")
+	}
+	return nil
 }
