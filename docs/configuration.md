@@ -2,7 +2,7 @@
 
 Whitebox Controller uses YAML format configuration file. By default Whitebox Controller will read the `config.yaml` in the current directory.
 
-The configuration file consists of two parts: Controller configuration and Webhook configuration. The following sections explain these configurations in detail.
+The configuration file consists of three parts: Controller configuration, Webhook configuration and Metrics configuration. The following sections explain these configurations in detail.
 
 ## Controller configuration
 
@@ -73,7 +73,7 @@ controllers:
 
 ## Webhook configuration
 
-The `webhook` key in the configuration file defines the settings for webhook server. This server provides admission webhooks for Kubernetes.
+The `webhook` key in the configuration file defines the settings for admission webhook server.
 
 Webhook configuration contains Validation Webhooks and Mutation Webhooks for resources. The following is an example of a webhook configuration.
 
@@ -116,6 +116,20 @@ webhook:
         args: ["mutate"]
 ```
 
+## Metrics configuration
+
+The `metrics` key in the configuration file defines the settings for metrics endpoint.
+
+```yaml
+metrics:
+  # Optional: The IP address that the metrics endpoint listen for.
+  # If omitted, '0.0.0.0' will be used.
+  host: 0.0.0.0
+
+  # Required: The port number that the metrics endpoint listen for.
+  port: 8080
+```
+
 ## Resource configuration
 
 Resource configuration are used in the following fields of Controller and Webhook configuration.
@@ -127,7 +141,7 @@ Resource configuration are used in the following fields of Controller and Webhoo
 
 Resource configuration consists of the following fields. These shows the types of resources in Kubernetes.
 
-```
+```yaml
 # Optional: API group for the resource.
 # See: https://kubernetes.io/docs/concepts/overview/kubernetes-api/#api-groups
 group: whitebox.summerwind.github.io
