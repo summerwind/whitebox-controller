@@ -158,10 +158,18 @@ func (c *ReferenceConfig) Validate() error {
 
 type ReconcilerConfig struct {
 	HandlerConfig
-	Observe bool `json:"observe"`
+	RequeueAfter string `json:"requeueAfter"`
+	Observe      bool   `json:"observe"`
 }
 
 func (c *ReconcilerConfig) Validate() error {
+	if c.RequeueAfter != "" {
+		_, err := time.ParseDuration(c.RequeueAfter)
+		if err != nil {
+			return fmt.Errorf("invalid requeueAfter: %v", err)
+		}
+	}
+
 	return c.HandlerConfig.Validate()
 }
 

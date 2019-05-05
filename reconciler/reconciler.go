@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,10 +29,11 @@ var log = logf.Log.WithName("reconciler")
 
 type Reconciler struct {
 	client.Client
-	config    *config.ControllerConfig
-	handler   handler.Handler
-	finalizer handler.Handler
-	recorder  record.EventRecorder
+	config       *config.ControllerConfig
+	handler      handler.Handler
+	finalizer    handler.Handler
+	recorder     record.EventRecorder
+	requeueAfter *time.Duration
 }
 
 func New(c *config.ControllerConfig, rec record.EventRecorder) (*Reconciler, error) {
@@ -44,6 +46,14 @@ func New(c *config.ControllerConfig, rec record.EventRecorder) (*Reconciler, err
 		config:   c,
 		handler:  h,
 		recorder: rec,
+	}
+
+	if c.Reconciler.RequeueAfter != "" {
+		ra, err := time.ParseDuration(c.Reconciler.RequeueAfter)
+		if err != nil {
+			return nil, err
+		}
+		r.requeueAfter = &ra
 	}
 
 	if c.Finalizer != nil {
@@ -196,7 +206,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		r.recorder.Event(instance, ev.Type, ev.Reason, ev.Message)
 	}
 
-	return reconcile.Result{}, nil
+	result := reconcile.Result{}
+	if r.requeueAfter != nil {
+		result.RequeueAfter = *r.requeueAfter
+	}
+
+	return result, nil
 }
 
 func (r *Reconciler) Observe(req reconcile.Request) (reconcile.Result, error) {
