@@ -3,8 +3,9 @@ module github.com/summerwind/whitebox-controller
 go 1.12
 
 require (
-	contrib.go.opencensus.io/exporter/ocagent v0.4.7 // indirect
-	github.com/Azure/go-autorest v11.5.2+incompatible // indirect
+	contrib.go.opencensus.io/exporter/ocagent v0.4.12 // indirect github.com/Azure/go-autorest v11.5.2+incompatible // indirect
+	git.apache.org/thrift.git v0.12.0 // indirect
+	github.com/Azure/go-autorest/autorest v0.1.0 // indirect
 	github.com/appscode/jsonpatch v0.0.0-20190108182946-7c0e3b262f30
 	github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973
 	github.com/davecgh/go-spew v1.1.1
@@ -14,6 +15,7 @@ require (
 	github.com/go-logr/zapr v0.1.1
 	github.com/gogo/protobuf v1.2.1
 	github.com/golang/groupcache v0.0.0-20190129154638-5b532d6fd5ef
+	github.com/golang/mock v1.2.0 // indirect
 	github.com/golang/protobuf v1.3.1
 	github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
@@ -36,7 +38,6 @@ require (
 	github.com/prometheus/common v0.2.0
 	github.com/prometheus/procfs v0.0.0-20190315082738-e56f2e22fc76
 	github.com/spf13/pflag v1.0.3
-	go.opencensus.io v0.19.1 // indirect
 	go.uber.org/atomic v1.3.2
 	go.uber.org/multierr v1.1.0
 	go.uber.org/zap v1.9.1
@@ -50,11 +51,11 @@ require (
 	google.golang.org/appengine v1.4.0
 	gopkg.in/inf.v0 v0.9.1
 	gopkg.in/yaml.v2 v2.2.2
-	k8s.io/api v0.0.0-20181213150558-05914d821849
-	k8s.io/apimachinery v0.0.0-20181127025237-2b1284ed4c93
-	k8s.io/client-go v0.0.0-20181213151034-8d9ed539ba31
+	k8s.io/api v0.0.0-20190222213804-5cb15d344471
+	k8s.io/apimachinery v0.0.0-20190221213512-86fb29eff628
+	k8s.io/client-go v10.0.0+incompatible
 	k8s.io/klog v0.2.0
 	k8s.io/kube-openapi v0.0.0-20190306001800-15615b16d372
-	sigs.k8s.io/controller-runtime v0.0.0-20190319233824-8d94f663b1f5
+	sigs.k8s.io/controller-runtime v0.2.0-alpha.0
 	sigs.k8s.io/yaml v1.1.0
 )
