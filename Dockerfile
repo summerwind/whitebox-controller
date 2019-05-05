@@ -1,16 +1,12 @@
-FROM golang:1.12.1 as base
+FROM golang:1.12 as builder
 
-ENV GO111MODULE=on
+ARG BUILD_ARG
+ENV GO111MODULE=on \
+    GOPROXY=https://proxy.golang.org
 
 WORKDIR /go/src/github.com/summerwind/whitebox-controller
 COPY go.mod go.sum .
 RUN go mod download
-
-###################
-
-FROM base as builder
-
-ARG BUILD_ARG
 
 COPY . /workspace
 WORKDIR /workspace
