@@ -50,6 +50,10 @@ controllers:
     exec:
       command: "/bin/controller"
       args: ["reconcile"]
+    # Optional: Reconcile the resource again after the specified time.
+    # The value must be the Go language's duration string.
+    # See: https://golang.org/pkg/time/#ParseDuration
+    requeueAfter: 60s
     # Optional: If you set this value to true, ignore the output of reconciler.
     # This setting is useful when you want to detect only changes without 
     # managing the resource status.
