@@ -57,7 +57,7 @@ controllers:
 
 ## Creating your custom resource
 
-Add 'Hello' custom resource on Kubernetes. To add a custom resource, you need to a manifest file that containes CustomResourceDefinition resource as follows.
+Add 'Hello' custom resource on Kubernetes. To add a custom resource, you need a manifest file that contains CustomResourceDefinition resource as follows.
 
 ```
 $ vim crd.yaml
