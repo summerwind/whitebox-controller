@@ -39,6 +39,10 @@ func NewHandler(c *config.HandlerConfig) (handler.Handler, error) {
 		}
 	}
 
+	if c.Func != nil {
+		h = c.Func.Handler
+	}
+
 	if h == nil {
 		return nil, errors.New("no handler found")
 	}

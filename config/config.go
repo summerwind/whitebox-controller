@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"github.com/summerwind/whitebox-controller/handler"
 	"io/ioutil"
 	"os"
 	"time"
@@ -176,13 +177,25 @@ func (c *ReconcilerConfig) Validate() error {
 type HandlerConfig struct {
 	Exec *ExecHandlerConfig `json:"exec"`
 	HTTP *HTTPHandlerConfig `json:"http"`
+	Func *FuncHandlerConfig `json:"-"`
 }
 
 func (c *HandlerConfig) Validate() error {
-	if c.Exec == nil && c.HTTP == nil {
+	specified := 0
+	if c.Exec != nil {
+		specified++
+	}
+	if c.HTTP != nil {
+		specified++
+	}
+	if c.Func != nil {
+		specified++
+	}
+
+	if specified == 0 {
 		return errors.New("handler must be specified")
 	}
-	if c.Exec != nil && c.HTTP != nil {
+	if specified > 1 {
 		return errors.New("exactly one handler must be specified")
 	}
 
@@ -195,6 +208,13 @@ func (c *HandlerConfig) Validate() error {
 
 	if c.HTTP != nil {
 		err := c.HTTP.Validate()
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.Func != nil {
+		err := c.Func.Validate()
 		if err != nil {
 			return err
 		}
@@ -369,5 +389,17 @@ func (c *MetricsConfig) Validate() error {
 	if c.Port == 0 {
 		return errors.New("port must be specified")
 	}
+	return nil
+}
+
+type FuncHandlerConfig struct {
+	Handler handler.Handler `json:"-"`
+}
+
+func (c *FuncHandlerConfig) Validate() error {
+	if c.Handler == nil {
+		return errors.New("handler must be specified")
+	}
+
 	return nil
 }
