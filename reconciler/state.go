@@ -14,9 +14,9 @@ import (
 
 type State struct {
 	Object     *unstructured.Unstructured              `json:"object"`
-	Dependents map[string][]*unstructured.Unstructured `json:"dependents"`
-	References map[string][]*unstructured.Unstructured `json:"references"`
-	Events     []StateEvent                            `json:"events"`
+	Dependents map[string][]*unstructured.Unstructured `json:"dependents,omitempty"`
+	References map[string][]*unstructured.Unstructured `json:"references,omitempty"`
+	Events     []StateEvent                            `json:"events,omitempty"`
 }
 
 func NewState(object *unstructured.Unstructured, deps, refs map[string][]*unstructured.Unstructured) *State {
