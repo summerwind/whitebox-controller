@@ -11,7 +11,8 @@ RUN go mod download
 COPY . /workspace
 WORKDIR /workspace
 
-RUN go vet ./... && go test -v ./...
+RUN go vet ./...
+RUN go test -v ./...
 RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} ./cmd/whitebox-controller
 RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} ./cmd/whitebox-gen
 
