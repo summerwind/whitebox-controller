@@ -4,9 +4,9 @@
 STATE=`cat -`
 
 # Get current phase of the Pod.
-POD_NAME=`echo "${STATE}" | jq -r '.metadata.name'`
-POD_NAMESPACE=`echo "${STATE}" | jq -r '.metadata.namespace'`
-POD_PHASE=`echo "${STATE}" | jq -r '.status.phase'`
+POD_NAME=`echo "${STATE}" | jq -r '.object.metadata.name'`
+POD_NAMESPACE=`echo "${STATE}" | jq -r '.object.metadata.namespace'`
+POD_PHASE=`echo "${STATE}" | jq -r '.object.status.phase'`
 
 # Generate message
 MESSAGE="Pod ${POD_NAMESPACE}/${POD_NAME} is ${POD_PHASE}"
