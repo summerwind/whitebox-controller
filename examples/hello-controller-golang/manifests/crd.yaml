@@ -1,0 +1,15 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: hello.whitebox.summerwind.github.io
+spec:
+  group: whitebox.summerwind.github.io
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+  names:
+    kind: Hello
+    plural: hello
+    singular: hello
+  scope: Namespaced
