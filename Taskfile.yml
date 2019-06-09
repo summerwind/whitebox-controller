@@ -46,7 +46,7 @@ tasks:
     - rm -rf whitebox-controller whitebox-gen cover.out release
   build-container:
     cmds:
-    - docker build --build-arg BUILD_FLAGS='{{.BUILD_FLAGS}}' -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
+    - docker build --build-arg VERSION={{.VERSION}} --build-arg COMMIT={{.COMMIT}} -t summerwind/{{.NAME}}:latest -t summerwind/{{.NAME}}:{{.VERSION}} .
   push-container:
     cmds:
     - docker push summerwind/{{.NAME}}:latest

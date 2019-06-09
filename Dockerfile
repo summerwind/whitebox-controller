@@ -1,6 +1,8 @@
 FROM golang:1.12 as builder
 
-ARG BUILD_ARG
+ARG VERSION
+ARG COMMIT
+
 ENV GO111MODULE=on \
     GOPROXY=https://proxy.golang.org
 
@@ -13,8 +15,8 @@ WORKDIR /workspace
 
 RUN go vet ./...
 RUN go test -v ./...
-RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} ./cmd/whitebox-controller
-RUN CGO_ENABLED=0 go build ${BUILD_FLAGS} ./cmd/whitebox-gen
+RUN CGO_ENABLED=0 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-controller
+RUN CGO_ENABLED=0 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-gen
 
 ###################
 
