@@ -231,9 +231,13 @@ func (r *Reconciler) Observe(req reconcile.Request) (reconcile.Result, error) {
 	instance.SetNamespace(namespace)
 	instance.SetName(name)
 
-	buf, err := json.Marshal(instance)
+	state := &State{
+		Object: instance,
+	}
+
+	buf, err := json.Marshal(state)
 	if err != nil {
-		log.Error(err, "Failed to encode resource", "namespace", namespace, "name", name)
+		log.Error(err, "Failed to encode state", "namespace", namespace, "name", name)
 		return reconcile.Result{}, nil
 	}
 
