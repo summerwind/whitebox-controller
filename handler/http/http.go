@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,6 +12,9 @@ import (
 	"time"
 
 	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/reconciler/state"
+	"github.com/summerwind/whitebox-controller/webhook/injection"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var defaultTimeout = 60 * time.Second
@@ -76,7 +80,91 @@ func NewHandler(c *config.HTTPHandlerConfig) (*HTTPHandler, error) {
 	}, nil
 }
 
-func (h *HTTPHandler) Run(buf []byte) ([]byte, error) {
+func (h *HTTPHandler) Reconcile(s *state.State) (*state.State, error) {
+	buf, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	newState := state.State{}
+	err = json.Unmarshal(out, &newState)
+	if err != nil {
+		return nil, err
+	}
+
+	return &newState, nil
+}
+
+func (h *HTTPHandler) Finalize(s *state.State) (*state.State, error) {
+	return h.Reconcile(s)
+}
+
+func (h *HTTPHandler) Validate(req *admission.Request) (*admission.Response, error) {
+	buf, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &admission.Response{}
+	err = json.Unmarshal(out, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (h *HTTPHandler) Mutate(req *admission.Request) (*admission.Response, error) {
+	buf, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &admission.Response{}
+	err = json.Unmarshal(out, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (h *HTTPHandler) Inject(req *injection.Request) (*injection.Response, error) {
+	buf, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &injection.Response{}
+	err = json.Unmarshal(out, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (h *HTTPHandler) run(buf []byte) ([]byte, error) {
 	reqBody := bytes.NewBuffer(buf)
 
 	req, err := http.NewRequest("POST", h.url, reqBody)

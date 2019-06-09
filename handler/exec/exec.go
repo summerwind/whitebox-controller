@@ -4,12 +4,16 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/reconciler/state"
+	"github.com/summerwind/whitebox-controller/webhook/injection"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 type ExecHandler struct {
@@ -53,7 +57,91 @@ func NewHandler(c *config.ExecHandlerConfig) (*ExecHandler, error) {
 	}, nil
 }
 
-func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
+func (h *ExecHandler) Reconcile(s *state.State) (*state.State, error) {
+	buf, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	newState := state.State{}
+	err = json.Unmarshal(out, &newState)
+	if err != nil {
+		return nil, err
+	}
+
+	return &newState, nil
+}
+
+func (h *ExecHandler) Finalize(s *state.State) (*state.State, error) {
+	return h.Reconcile(s)
+}
+
+func (h *ExecHandler) Validate(req *admission.Request) (*admission.Response, error) {
+	buf, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &admission.Response{}
+	err = json.Unmarshal(out, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (h *ExecHandler) Mutate(req *admission.Request) (*admission.Response, error) {
+	buf, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &admission.Response{}
+	err = json.Unmarshal(out, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (h *ExecHandler) Inject(req *injection.Request) (*injection.Response, error) {
+	buf, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := h.run(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &injection.Response{}
+	err = json.Unmarshal(out, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (h *ExecHandler) run(buf []byte) ([]byte, error) {
 	var stdout bytes.Buffer
 
 	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
