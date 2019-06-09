@@ -3,6 +3,7 @@ package webhook
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -149,12 +150,23 @@ func newValidationHook(hc *config.HandlerConfig) (http.Handler, error) {
 	}
 
 	validator := func(ctx context.Context, req admission.Request) admission.Response {
-		res, err := h.Validate(&req)
+		buf, err := json.Marshal(req)
+		if err != nil {
+			return admission.ValidationResponse(false, fmt.Sprintf("invalid request: %v", err))
+		}
+
+		out, err := h.Run(buf)
 		if err != nil {
 			return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
 		}
 
-		return *res
+		res := admission.Response{}
+		err = json.Unmarshal(out, &res)
+		if err != nil {
+			return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
+		}
+
+		return res
 	}
 
 	hook := &admission.Webhook{Handler: admission.HandlerFunc(validator)}
@@ -170,12 +182,23 @@ func newMutationHook(hc *config.HandlerConfig) (http.Handler, error) {
 	}
 
 	mutator := func(ctx context.Context, req admission.Request) admission.Response {
-		res, err := h.Mutate(&req)
+		buf, err := json.Marshal(req)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("invalid request: %v", err))
+		}
+
+		out, err := h.Run(buf)
 		if err != nil {
 			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("handler error: %v", err))
 		}
 
-		return *res
+		res := admission.Response{}
+		err = json.Unmarshal(out, &res)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("handler error: %v", err))
+		}
+
+		return res
 	}
 
 	hook := &admission.Webhook{Handler: admission.HandlerFunc(mutator)}
@@ -220,12 +243,24 @@ func newInjectionHook(ic *config.InjectorConfig, client client.Client) (http.Han
 	}
 
 	handler := func(ctx context.Context, req injection.Request) (injection.Response, error) {
-		res, err := h.Inject(&req)
+		res := injection.Response{}
+
+		buf, err := json.Marshal(req)
 		if err != nil {
-			return injection.Response{}, errors.New("Handler error")
+			return res, errors.New("Invalid injection request")
 		}
 
-		return *res, nil
+		out, err := h.Run(buf)
+		if err != nil {
+			return res, errors.New("Handler error")
+		}
+
+		err = json.Unmarshal(out, &res)
+		if err != nil {
+			return res, errors.New("Invalid injection response")
+		}
+
+		return res, nil
 	}
 
 	hook := &injection.Webhook{

@@ -3,16 +3,15 @@ package reconciler
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/third_party/forked/golang/template"
 	"k8s.io/client-go/tools/record"
@@ -24,7 +23,6 @@ import (
 	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/handler"
 	"github.com/summerwind/whitebox-controller/handler/common"
-	"github.com/summerwind/whitebox-controller/reconciler/state"
 )
 
 var log = logf.Log.WithName("reconciler")
@@ -76,7 +74,7 @@ func (r *Reconciler) InjectClient(c client.Client) error {
 
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	var (
-		newState  *state.State
+		out       []byte
 		err       error
 		finalized bool
 	)
@@ -113,21 +111,39 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, err
 	}
 
-	s := state.New(instance, dependents, refs)
+	state := NewState(instance, dependents, refs)
+	buf, err := json.Marshal(state)
+	if err != nil {
+		log.Error(err, "Failed to encode state", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
+	}
 
 	if isDeleting(instance) && r.finalizer != nil {
 		log.Info("Starting finalizer", "namespace", namespace, "name", name)
-		newState, err = r.finalizer.Finalize(s)
+		out, err = r.finalizer.Run(buf)
 		finalized = true
 	} else {
-		newState, err = r.handler.Reconcile(s)
+		out, err = r.handler.Run(buf)
 	}
 	if err != nil {
 		log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, err
 	}
 
-	err = r.validateState(s, newState)
+	if len(out) == 0 {
+		err := errors.New("empty state")
+		log.Error(err, "Handler error", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
+	}
+
+	newState := &State{}
+	err = json.Unmarshal(out, newState)
+	if err != nil {
+		log.Error(err, "Failed to decode new state", "namespace", namespace, "name", name)
+		return reconcile.Result{}, err
+	}
+
+	err = state.Validate(newState, r.config)
 	if err != nil {
 		log.Error(err, "Ignored due to the new state is invalid", "namespace", namespace, "name", name)
 		return reconcile.Result{}, nil
@@ -147,9 +163,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	r.setOwnerReference(newState, ownerRef)
+	newState.SetOwnerReference(ownerRef, r.config)
 
-	created, updated, deleted := s.Diff(newState)
+	created, updated, deleted := state.Diff(newState)
 
 	for _, res := range created {
 		log.Info("Creating resource", "kind", res.GetKind(), "namespace", res.GetNamespace(), "name", res.GetName())
@@ -215,11 +231,13 @@ func (r *Reconciler) Observe(req reconcile.Request) (reconcile.Result, error) {
 	instance.SetNamespace(namespace)
 	instance.SetName(name)
 
-	s := state.State{
-		Object: instance,
+	buf, err := json.Marshal(instance)
+	if err != nil {
+		log.Error(err, "Failed to encode resource", "namespace", namespace, "name", name)
+		return reconcile.Result{}, nil
 	}
 
-	_, err = r.handler.Reconcile(&s)
+	_, err = r.handler.Run(buf)
 	if err != nil {
 		log.Error(err, "Handler error", "namespace", namespace, "name", name)
 		return reconcile.Result{}, nil
@@ -381,72 +399,6 @@ func (r *Reconciler) getFinalizerName() string {
 	return fmt.Sprintf("%s.%s", r.config.Name, r.config.Resource.Group)
 }
 
-// validateState validates a new state.
-func (r *Reconciler) validateState(old *state.State, new *state.State) error {
-	if new.Object != nil {
-		namespace := new.Object.GetNamespace()
-
-		if !reflect.DeepEqual(new.Object.GroupVersionKind(), old.Object.GroupVersionKind()) {
-			return errors.New("resource: group/version/kind does not match")
-		}
-		if namespace != old.Object.GetNamespace() {
-			return errors.New("resource: namespace does not match")
-		}
-		if new.Object.GetName() != old.Object.GetName() {
-			return errors.New("resource: name does not match")
-		}
-
-		for key := range new.Dependents {
-			for i, dep := range new.Dependents[key] {
-				if dep.GetNamespace() != namespace {
-					return fmt.Errorf("dependents[%s][%d]: namespace does not match", key, i)
-				}
-			}
-		}
-	}
-
-	for key := range new.Dependents {
-		if len(r.config.Dependents) == 0 {
-			return errors.New("no dependents specified in the configuration")
-		}
-
-		matched := false
-		for _, res := range r.config.Dependents {
-			if key == getKindArg(res.GroupVersionKind) {
-				matched = true
-				break
-			}
-		}
-
-		if !matched {
-			return fmt.Errorf("dependents[%s]: unexpected group/version/kind", key)
-		}
-	}
-
-	return nil
-}
-
-// setOwnerReference returns a state with specified owner reference.
-func (r *Reconciler) setOwnerReference(s *state.State, ownerRef metav1.OwnerReference) *state.State {
-	orphans := map[string]bool{}
-
-	for _, dep := range r.config.Dependents {
-		orphans[getKindArg(dep.GroupVersionKind)] = dep.Orphan
-	}
-
-	for key, deps := range s.Dependents {
-		if orphans[key] {
-			continue
-		}
-
-		for _, dep := range deps {
-			dep.SetOwnerReferences([]metav1.OwnerReference{ownerRef})
-		}
-	}
-
-	return s
-}
-
 // newOwnerReference creates and returns an OwnerReference based on
 // specified resource's GroupVersionKind.
 func newOwnerReference(res *unstructured.Unstructured) metav1.OwnerReference {
@@ -508,13 +460,4 @@ func isDeleting(res *unstructured.Unstructured) bool {
 	}
 
 	return ok
-}
-
-// getKindArg returns string representation of GVK.
-func getKindArg(gvk schema.GroupVersionKind) string {
-	if gvk.Group == "" {
-		return strings.ToLower(fmt.Sprintf("%s.%s", gvk.Kind, gvk.Version))
-	}
-
-	return strings.ToLower(fmt.Sprintf("%s.%s.%s", gvk.Kind, gvk.Version, gvk.Group))
 }
