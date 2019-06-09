@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	kconfig "sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -16,13 +17,26 @@ import (
 	"github.com/summerwind/whitebox-controller/manager"
 )
 
+var (
+	VERSION string = "dev"
+	COMMIT  string = "HEAD"
+)
+
 func main() {
 	logf.SetLogger(logf.ZapLogger(false))
 	log := logf.Log.WithName("whitebox-controller")
 
-	var configPath = flag.String("c", "config.yaml", "Path to configuration file")
+	var (
+		configPath = flag.String("c", "config.yaml", "Path to configuration file")
+		version    = flag.Bool("version", false, "Display version information and exit")
+	)
 
 	flag.Parse()
+
+	if *version {
+		fmt.Printf("%s (%s)\n", VERSION, COMMIT)
+		return
+	}
 
 	c, err := config.LoadFile(*configPath)
 	if err != nil {
