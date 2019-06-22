@@ -76,6 +76,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	var (
 		out       []byte
 		err       error
+		requeued  bool
 		finalized bool
 	)
 
@@ -149,6 +150,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, nil
 	}
 
+	requeued = newState.Requeue
+	if newState.RequeueAfter > 0 {
+		requeued = true
+	}
+
 	if finalized {
 		err := r.unsetFinalizer(newState.Object)
 		if err != nil {
@@ -207,8 +213,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	result := reconcile.Result{}
-	if r.requeueAfter != nil {
-		result.RequeueAfter = *r.requeueAfter
+	if requeued {
+		result.Requeue = newState.Requeue
+		if newState.RequeueAfter > 0 {
+			result.RequeueAfter = time.Duration(newState.RequeueAfter) * time.Second
+		}
+	} else {
+		if r.requeueAfter != nil {
+			result.RequeueAfter = *r.requeueAfter
+		}
 	}
 
 	return result, nil

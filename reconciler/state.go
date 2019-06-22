@@ -13,10 +13,12 @@ import (
 )
 
 type State struct {
-	Object     *unstructured.Unstructured              `json:"object"`
-	Dependents map[string][]*unstructured.Unstructured `json:"dependents,omitempty"`
-	References map[string][]*unstructured.Unstructured `json:"references,omitempty"`
-	Events     []StateEvent                            `json:"events,omitempty"`
+	Object       *unstructured.Unstructured              `json:"object"`
+	Dependents   map[string][]*unstructured.Unstructured `json:"dependents,omitempty"`
+	References   map[string][]*unstructured.Unstructured `json:"references,omitempty"`
+	Events       []StateEvent                            `json:"events,omitempty"`
+	Requeue      bool                                    `json:"requeue,omitempty"`
+	RequeueAfter int                                     `json:"requeueAfter,omitempty"`
 }
 
 func NewState(object *unstructured.Unstructured, deps, refs map[string][]*unstructured.Unstructured) *State {
