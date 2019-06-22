@@ -156,10 +156,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if finalized {
-		err := r.unsetFinalizer(newState.Object)
-		if err != nil {
-			log.Error(err, "Failed to unset finalizer from object metadata", "namespace", namespace, "name", name)
-			return reconcile.Result{}, err
+		if !requeued {
+			err := r.unsetFinalizer(newState.Object)
+			if err != nil {
+				log.Error(err, "Failed to unset finalizer from object metadata", "namespace", namespace, "name", name)
+				return reconcile.Result{}, err
+			}
 		}
 	} else if r.finalizer != nil {
 		err := r.setFinalizer(newState.Object)
