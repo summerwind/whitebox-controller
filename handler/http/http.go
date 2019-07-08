@@ -4,13 +4,18 @@ import (
 	"bytes"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
 	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/reconciler/state"
+	"github.com/summerwind/whitebox-controller/webhook/injection"
 )
 
 var defaultTimeout = 60 * time.Second
@@ -21,7 +26,7 @@ type HTTPHandler struct {
 	debug  bool
 }
 
-func NewHandler(c *config.HTTPHandlerConfig) (*HTTPHandler, error) {
+func New(c *config.HTTPHandlerConfig) (*HTTPHandler, error) {
 	var (
 		timeout time.Duration
 		err     error
@@ -76,7 +81,68 @@ func NewHandler(c *config.HTTPHandlerConfig) (*HTTPHandler, error) {
 	}, nil
 }
 
-func (h *HTTPHandler) Run(buf []byte) ([]byte, error) {
+func (h *HTTPHandler) HandleState(s *state.State) error {
+	in, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+
+	out, err := h.run(in)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(out, s)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *HTTPHandler) HandleAdmissionRequest(req admission.Request) (admission.Response, error) {
+	res := admission.Response{}
+
+	in, err := json.Marshal(&req)
+	if err != nil {
+		return res, err
+	}
+
+	out, err := h.run(in)
+	if err != nil {
+		return res, err
+	}
+
+	err = json.Unmarshal(out, &res)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func (h *HTTPHandler) HandleInjectionRequest(req injection.Request) (injection.Response, error) {
+	res := injection.Response{}
+
+	in, err := json.Marshal(&req)
+	if err != nil {
+		return res, err
+	}
+
+	out, err := h.run(in)
+	if err != nil {
+		return res, err
+	}
+
+	err = json.Unmarshal(out, &res)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func (h *HTTPHandler) run(buf []byte) ([]byte, error) {
 	reqBody := bytes.NewBuffer(buf)
 
 	req, err := http.NewRequest("POST", h.url, reqBody)

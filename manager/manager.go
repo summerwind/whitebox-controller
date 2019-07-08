@@ -22,18 +22,29 @@ func New(c *config.Config, kc *rest.Config) (manager.Manager, error) {
 		return nil, err
 	}
 
-	for i, _ := range c.Controllers {
-		cc := c.Controllers[i]
-		_, err := controller.New(cc, mgr)
-		if err != nil {
-			return nil, err
-		}
+	server, err := webhook.NewServer(c.Webhook, mgr)
+	if err != nil {
+		return nil, err
 	}
 
-	if c.Webhook != nil {
-		_, err := webhook.NewServer(c.Webhook, mgr)
-		if err != nil {
-			return nil, err
+	for _, r := range c.Resources {
+		if r.Reconciler != nil {
+			_, err := controller.New(r, mgr)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if r.Validator != nil {
+			server.AddValidator(r)
+		}
+
+		if r.Mutator != nil {
+			server.AddMutator(r)
+		}
+
+		if r.Injector != nil {
+			server.AddInjector(r)
 		}
 	}
 

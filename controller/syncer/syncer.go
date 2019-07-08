@@ -2,6 +2,8 @@ package syncer
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,14 +21,14 @@ var log = logf.Log.WithName("syncer")
 type Syncer struct {
 	client.Client
 	C        chan event.GenericEvent
-	config   *config.ControllerConfig
+	config   *config.ResourceConfig
 	interval time.Duration
 }
 
-func New(c *config.ControllerConfig, mgr manager.Manager) (*Syncer, error) {
-	interval, err := time.ParseDuration(c.Syncer.Interval)
+func New(c *config.ResourceConfig, mgr manager.Manager) (*Syncer, error) {
+	interval, err := time.ParseDuration(c.ResyncPeriod)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid resync period: %v", err)
 	}
 
 	s := &Syncer{
@@ -42,16 +44,18 @@ func New(c *config.ControllerConfig, mgr manager.Manager) (*Syncer, error) {
 func (s *Syncer) Start(stop <-chan struct{}) error {
 	t := time.NewTicker(s.interval)
 
+	name := fmt.Sprintf("%s-controller", strings.ToLower(s.config.Kind))
+
 	for {
 		select {
 		case <-t.C:
 			err := s.Sync()
 			if err != nil {
-				log.Error(err, "Sync error", "syncer", s.config.Name)
+				log.Error(err, "Sync error", "syncer", name)
 			}
-			log.Info("Synced", "syncer", s.config.Name)
+			log.Info("Synced", "syncer", name)
 		case <-stop:
-			log.Info("Stopping syncer", "syncer", s.config.Name)
+			log.Info("Stopping syncer", "syncer", name)
 			return nil
 		}
 	}
@@ -59,7 +63,7 @@ func (s *Syncer) Start(stop <-chan struct{}) error {
 
 func (s *Syncer) Sync() error {
 	instanceList := &unstructured.UnstructuredList{}
-	instanceList.SetGroupVersionKind(s.config.Resource)
+	instanceList.SetGroupVersionKind(s.config.GroupVersionKind)
 
 	err := s.List(context.TODO(), instanceList)
 	if err != nil {

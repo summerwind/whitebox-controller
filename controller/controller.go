@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -10,28 +11,30 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/controller/syncer"
 	"github.com/summerwind/whitebox-controller/reconciler"
-	"github.com/summerwind/whitebox-controller/syncer"
 )
 
-func New(c *config.ControllerConfig, mgr manager.Manager) (*controller.Controller, error) {
+func New(c *config.ResourceConfig, mgr manager.Manager) (*controller.Controller, error) {
 	var (
 		r   *reconciler.Reconciler
 		err error
 	)
 
-	r, err = reconciler.New(c, mgr.GetEventRecorderFor(c.Name))
+	name := fmt.Sprintf("%s-controller", strings.ToLower(c.Kind))
+
+	r, err = reconciler.New(c, mgr.GetEventRecorderFor(name))
 	if err != nil {
 		return nil, fmt.Errorf("could not create reconciler: %v", err)
 	}
 
-	ctrl, err := controller.New(c.Name, mgr, controller.Options{Reconciler: r})
+	ctrl, err := controller.New(name, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return nil, fmt.Errorf("could not create controller: %v", err)
 	}
 
 	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(c.Resource)
+	obj.SetGroupVersionKind(c.GroupVersionKind)
 
 	err = ctrl.Watch(&source.Kind{Type: obj}, &handler.EnqueueRequestForObject{})
 	if err != nil {
@@ -56,7 +59,7 @@ func New(c *config.ControllerConfig, mgr manager.Manager) (*controller.Controlle
 		}
 	}
 
-	if c.Syncer != nil {
+	if c.ResyncPeriod != "" {
 		s, err := syncer.New(c, mgr)
 		if err != nil {
 			return nil, fmt.Errorf("could not create syncer: %v", err)

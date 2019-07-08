@@ -4,12 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
 	"github.com/summerwind/whitebox-controller/config"
+	"github.com/summerwind/whitebox-controller/reconciler/state"
+	"github.com/summerwind/whitebox-controller/webhook/injection"
 )
 
 type ExecHandler struct {
@@ -21,7 +26,7 @@ type ExecHandler struct {
 	debug      bool
 }
 
-func NewHandler(c *config.ExecHandlerConfig) (*ExecHandler, error) {
+func New(c *config.ExecHandlerConfig) (*ExecHandler, error) {
 	args := []string{}
 	if c.Args != nil {
 		args = append(args, c.Args...)
@@ -53,7 +58,68 @@ func NewHandler(c *config.ExecHandlerConfig) (*ExecHandler, error) {
 	}, nil
 }
 
-func (h *ExecHandler) Run(buf []byte) ([]byte, error) {
+func (h *ExecHandler) HandleState(s *state.State) error {
+	in, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+
+	out, err := h.run(in)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(out, s)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h *ExecHandler) HandleAdmissionRequest(req admission.Request) (admission.Response, error) {
+	res := admission.Response{}
+
+	in, err := json.Marshal(&req)
+	if err != nil {
+		return res, err
+	}
+
+	out, err := h.run(in)
+	if err != nil {
+		return res, err
+	}
+
+	err = json.Unmarshal(out, &res)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func (h *ExecHandler) HandleInjectionRequest(req injection.Request) (injection.Response, error) {
+	res := injection.Response{}
+
+	in, err := json.Marshal(&req)
+	if err != nil {
+		return res, err
+	}
+
+	out, err := h.run(in)
+	if err != nil {
+		return res, err
+	}
+
+	err = json.Unmarshal(out, &res)
+	if err != nil {
+		return res, err
+	}
+
+	return res, nil
+}
+
+func (h *ExecHandler) run(buf []byte) ([]byte, error) {
 	var stdout bytes.Buffer
 
 	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -28,57 +30,19 @@ var (
 )
 
 type Server struct {
+	client.Client
+	config  *config.ServerConfig
+	mux     *http.ServeMux
 	handler http.Handler
-	config  *config.WebhookConfig
 }
 
-func NewServer(c *config.WebhookConfig, mgr manager.Manager) (*Server, error) {
+func NewServer(c *config.ServerConfig, mgr manager.Manager) (*Server, error) {
 	mux := http.NewServeMux()
 
-	for _, hc := range c.Handlers {
-		res := hc.Resource
-		basePath := fmt.Sprintf("/%s/%s/%s", res.Group, res.Version, strings.ToLower(res.Kind))
-
-		if hc.Validator != nil {
-			hook, err := newValidationHook(hc.Validator)
-			if err != nil {
-				return nil, err
-			}
-
-			p := fmt.Sprintf("%s/validate", basePath)
-
-			log.Info("Adding validation hook", "path", p)
-			mux.Handle(p, hook)
-		}
-
-		if hc.Mutator != nil {
-			hook, err := newMutationHook(hc.Mutator)
-			if err != nil {
-				return nil, err
-			}
-
-			p := fmt.Sprintf("%s/mutate", basePath)
-
-			log.Info("Adding mutation hook", "path", p)
-			mux.Handle(p, hook)
-		}
-
-		if hc.Injector != nil {
-			hook, err := newInjectionHook(hc.Injector, mgr.GetClient())
-			if err != nil {
-				return nil, err
-			}
-
-			p := fmt.Sprintf("%s/inject", basePath)
-
-			log.Info("Adding injection hook", "path", p)
-			mux.Handle(p, hook)
-		}
-	}
-
 	s := &Server{
-		handler: wrap(mux),
 		config:  c,
+		mux:     mux,
+		handler: wrap(mux),
 	}
 
 	return s, mgr.Add(s)
@@ -129,6 +93,50 @@ func (s *Server) Start(stop <-chan struct{}) error {
 	return nil
 }
 
+func (s *Server) AddValidator(c *config.ResourceConfig) error {
+	hook, err := newValidationHook(c.Validator)
+	if err != nil {
+		return err
+	}
+
+	p := fmt.Sprintf("%s/validate", getBasePath(c.GroupVersionKind))
+	log.Info("Adding validation hook", "path", p)
+	s.mux.Handle(p, hook)
+
+	return nil
+}
+
+func (s *Server) AddMutator(c *config.ResourceConfig) error {
+	hook, err := newMutationHook(c.Mutator)
+	if err != nil {
+		return err
+	}
+
+	p := fmt.Sprintf("%s/mutate", getBasePath(c.GroupVersionKind))
+	log.Info("Adding mutation hook", "path", p)
+	s.mux.Handle(p, hook)
+
+	return nil
+}
+
+func (s *Server) AddInjector(c *config.ResourceConfig) error {
+	hook, err := newInjectionHook(c.Injector, s.Client)
+	if err != nil {
+		return err
+	}
+
+	p := fmt.Sprintf("%s/inject", getBasePath(c.GroupVersionKind))
+	log.Info("Adding injection hook", "path", p)
+	s.mux.Handle(p, hook)
+
+	return nil
+}
+
+func (s *Server) InjectClient(c client.Client) error {
+	s.Client = c
+	return nil
+}
+
 func wrap(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
 		reqPath := req.URL.Path
@@ -143,25 +151,18 @@ func wrap(h http.Handler) http.Handler {
 	})
 }
 
+func getBasePath(gvk schema.GroupVersionKind) string {
+	return fmt.Sprintf("/%s/%s/%s", gvk.Group, gvk.Version, strings.ToLower(gvk.Kind))
+}
+
 func newValidationHook(hc *config.HandlerConfig) (http.Handler, error) {
-	h, err := common.NewHandler(hc)
+	h, err := common.NewAdmissionRequestHandler(hc)
 	if err != nil {
 		return nil, err
 	}
 
 	validator := func(ctx context.Context, req admission.Request) admission.Response {
-		buf, err := json.Marshal(req)
-		if err != nil {
-			return admission.ValidationResponse(false, fmt.Sprintf("invalid request: %v", err))
-		}
-
-		out, err := h.Run(buf)
-		if err != nil {
-			return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
-		}
-
-		res := admission.Response{}
-		err = json.Unmarshal(out, &res)
+		res, err := h.HandleAdmissionRequest(req)
 		if err != nil {
 			return admission.ValidationResponse(false, fmt.Sprintf("handler error: %v", err))
 		}
@@ -176,24 +177,13 @@ func newValidationHook(hc *config.HandlerConfig) (http.Handler, error) {
 }
 
 func newMutationHook(hc *config.HandlerConfig) (http.Handler, error) {
-	h, err := common.NewHandler(hc)
+	h, err := common.NewAdmissionRequestHandler(hc)
 	if err != nil {
 		return nil, err
 	}
 
 	mutator := func(ctx context.Context, req admission.Request) admission.Response {
-		buf, err := json.Marshal(req)
-		if err != nil {
-			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("invalid request: %v", err))
-		}
-
-		out, err := h.Run(buf)
-		if err != nil {
-			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("handler error: %v", err))
-		}
-
-		res := admission.Response{}
-		err = json.Unmarshal(out, &res)
+		res, err := h.HandleAdmissionRequest(req)
 		if err != nil {
 			return admission.Errored(http.StatusInternalServerError, fmt.Errorf("handler error: %v", err))
 		}
@@ -237,27 +227,15 @@ func newInjectionHook(ic *config.InjectorConfig, client client.Client) (http.Han
 		return nil, errors.New("unsupported signing key type")
 	}
 
-	h, err := common.NewHandler(&ic.HandlerConfig)
+	h, err := common.NewInjectionRequestHandler(&ic.HandlerConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	handler := func(ctx context.Context, req injection.Request) (injection.Response, error) {
-		res := injection.Response{}
-
-		buf, err := json.Marshal(req)
-		if err != nil {
-			return res, errors.New("Invalid injection request")
-		}
-
-		out, err := h.Run(buf)
+		res, err := h.HandleInjectionRequest(req)
 		if err != nil {
 			return res, errors.New("Handler error")
-		}
-
-		err = json.Unmarshal(out, &res)
-		if err != nil {
-			return res, errors.New("Invalid injection response")
 		}
 
 		return res, nil
@@ -271,4 +249,13 @@ func newInjectionHook(ic *config.InjectorConfig, client client.Client) (http.Han
 	hook.InjectLogger(log)
 
 	return hook, nil
+}
+
+func Unpack(r runtime.RawExtension, v interface{}) error {
+	err := json.Unmarshal(r.Raw, v)
+	if err != nil {
+		return fmt.Errorf("failed to unpack: %v", err)
+	}
+
+	return nil
 }
