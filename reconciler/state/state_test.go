@@ -113,15 +113,16 @@ func TestPack(t *testing.T) {
 		},
 	}
 
-	state, err := Pack(ts)
+	s := &State{}
+	err := Pack(ts, s)
 	Expect(err).NotTo(HaveOccurred())
-	Expect(state.Object.GetName()).To(Equal("test"))
+	Expect(s.Object.GetName()).To(Equal("test"))
 
-	deps := state.Dependents["a.v1alpha1.example.com"]
+	deps := s.Dependents["a.v1alpha1.example.com"]
 	Expect(deps[0].GetName()).To(Equal("test1"))
 	Expect(deps[1].GetName()).To(Equal("test2"))
 
-	refs := state.References["b.v1alpha1.example.com"]
+	refs := s.References["b.v1alpha1.example.com"]
 	Expect(refs[0].GetName()).To(Equal("test1"))
 	Expect(refs[1].GetName()).To(Equal("test2"))
 }

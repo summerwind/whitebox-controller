@@ -163,23 +163,22 @@ func (s *State) Diff(ns *State) ([]*unstructured.Unstructured, []*unstructured.U
 	return created, updated, deleted
 }
 
-// Pack returns the state of v.
-func Pack(v interface{}) (*State, error) {
+// Pack parses v and stores the state the value to the state.
+func Pack(v interface{}, state *State) error {
 	b, err := json.Marshal(v)
 	if err != nil {
-		return nil, fmt.Errorf("failed to pack: %v", err)
+		return fmt.Errorf("failed to pack: %v", err)
 	}
 
-	state := &State{}
 	err = json.Unmarshal(b, state)
 	if err != nil {
-		return nil, fmt.Errorf("failed to pack: %v", err)
+		return fmt.Errorf("failed to pack: %v", err)
 	}
 
-	return state, nil
+	return nil
 }
 
-// Unpack parses the state and stores the result in the value pointed to by v.
+// Unpack parses the state and stores the value pointed to by v.
 func Unpack(state *State, v interface{}) error {
 	b, err := json.Marshal(state)
 	if err != nil {
