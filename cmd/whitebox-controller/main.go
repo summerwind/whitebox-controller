@@ -44,12 +44,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = c.Validate()
-	if err != nil {
-		log.Error(err, "invalid configuration")
-		os.Exit(1)
-	}
-
 	kc, err := kconfig.GetConfig()
 	if err != nil {
 		log.Error(err, "could not load kubernetes configuration")

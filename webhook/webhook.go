@@ -39,6 +39,13 @@ type Server struct {
 func NewServer(c *config.ServerConfig, mgr manager.Manager) (*Server, error) {
 	mux := http.NewServeMux()
 
+	if c == nil {
+		return nil, fmt.Errorf("configuration must be specified")
+	}
+	if c.TLS == nil {
+		return nil, fmt.Errorf("TLS configuration must be specified")
+	}
+
 	s := &Server{
 		config:  c,
 		mux:     mux,
@@ -58,7 +65,12 @@ func (s *Server) Start(stop <-chan struct{}) error {
 		Certificates: []tls.Certificate{cert},
 	}
 
-	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+	port := s.config.Port
+	if port == 0 {
+		port = 443
+	}
+	addr := fmt.Sprintf("%s:%d", s.config.Host, port)
+
 	listener, err := tls.Listen("tcp", addr, tlsConfig)
 	if err != nil {
 		return err

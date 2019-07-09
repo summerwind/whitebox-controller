@@ -12,6 +12,11 @@ import (
 )
 
 func New(c *config.Config, kc *rest.Config) (manager.Manager, error) {
+	err := c.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("invalid configuration: %v", err)
+	}
+
 	opts := manager.Options{}
 	if c.Metrics != nil {
 		opts.MetricsBindAddress = fmt.Sprintf("%s:%d", c.Metrics.Host, c.Metrics.Port)
@@ -22,11 +27,7 @@ func New(c *config.Config, kc *rest.Config) (manager.Manager, error) {
 		return nil, err
 	}
 
-	server, err := webhook.NewServer(c.Webhook, mgr)
-	if err != nil {
-		return nil, err
-	}
-
+	wh := false
 	for _, r := range c.Resources {
 		if r.Reconciler != nil {
 			_, err := controller.New(r, mgr)
@@ -35,16 +36,29 @@ func New(c *config.Config, kc *rest.Config) (manager.Manager, error) {
 			}
 		}
 
-		if r.Validator != nil {
-			server.AddValidator(r)
+		if r.Validator != nil || r.Mutator != nil || r.Injector != nil {
+			wh = true
+		}
+	}
+
+	if wh {
+		server, err := webhook.NewServer(c.Webhook, mgr)
+		if err != nil {
+			return nil, err
 		}
 
-		if r.Mutator != nil {
-			server.AddMutator(r)
-		}
+		for _, r := range c.Resources {
+			if r.Validator != nil {
+				server.AddValidator(r)
+			}
 
-		if r.Injector != nil {
-			server.AddInjector(r)
+			if r.Mutator != nil {
+				server.AddMutator(r)
+			}
+
+			if r.Injector != nil {
+				server.AddInjector(r)
+			}
 		}
 	}
 
