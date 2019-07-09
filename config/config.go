@@ -219,6 +219,9 @@ func (c *HandlerConfig) Validate() error {
 	if c.HTTP != nil {
 		specified++
 	}
+	if c.StateHandler != nil || c.AdmissionRequestHandler != nil || c.InjectionRequestHandler != nil {
+		specified++
+	}
 
 	if specified == 0 {
 		return errors.New("handler must be specified")
