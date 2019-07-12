@@ -1,21 +1,43 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"strings"
 
 	"github.com/summerwind/whitebox-controller/config"
 )
 
+type Option struct {
+	Name      string
+	Namespace string
+	Image     string
+	Config    *config.Config
+}
+
+func (o *Option) Validate() error {
+	if o.Name == "" {
+		return fmt.Errorf("name must be specified")
+	}
+
+	if o.Image == "" {
+		return fmt.Errorf("image must be specified")
+	}
+
+	err := o.Config.Validate()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func manifest(args []string) error {
 	cmd := flag.NewFlagSet("manifest", flag.ExitOnError)
 	configPath := cmd.String("c", "config.yaml", "Path to configuration file")
-	name := cmd.String("service-name", "", "Service name of the webhook configuration")
-	namespace := cmd.String("service-namespace", "", "Service namespace of the webhook configuration")
-	caBundlePath := cmd.String("ca-bundle", "", "Path to CA bundle file")
+	name := cmd.String("name", "", "Name of the controller")
+	namespace := cmd.String("namespace", "default", "Namespace of the controller")
+	image := cmd.String("image", "", "Image name of the controller")
 
 	cmd.Parse(args)
 
@@ -24,36 +46,49 @@ func manifest(args []string) error {
 		return fmt.Errorf("could not load configuration file: %v", err)
 	}
 
+	o := &Option{
+		Name:      *name,
+		Namespace: *namespace,
+		Image:     *image,
+		Config:    c,
+	}
+
+	err = o.Validate()
+	if err != nil {
+		return err
+	}
+
 	manifests := []string{}
 
-	crds, err := crd(c)
+	crds, err := genCRD(o)
 	if err != nil {
 		return fmt.Errorf("failed to generate CRD: %v", err)
 	}
 	manifests = append(manifests, crds...)
 
-	if c.Webhook != nil {
-		if *name == "" {
-			return errors.New("-service-name must be specified")
-		}
-		if *namespace == "" {
-			return errors.New("-service-namespace must be specified")
-		}
-		if *caBundlePath == "" {
-			return errors.New("-ca-bundle must be specified")
-		}
-
-		caBundle, err := ioutil.ReadFile(*caBundlePath)
-		if err != nil {
-			return fmt.Errorf("could not read CA bundle file: %v", err)
-		}
-
-		webhooks, err := webhook(c.Webhook, *name, *namespace, caBundle)
-		if err != nil {
-			return fmt.Errorf("failed to generate webhook config: %v", err)
-		}
-		manifests = append(manifests, webhooks...)
+	certs, err := genCertificate(o)
+	if err != nil {
+		return fmt.Errorf("failed to generate certificates: %v", err)
 	}
+	manifests = append(manifests, certs)
+
+	controller, err := genController(o)
+	if err != nil {
+		return fmt.Errorf("failed to generate resources for controller: %v", err)
+	}
+	manifests = append(manifests, controller)
+
+	vwc, err := genValidationWebhookConfig(o)
+	if err != nil {
+		return fmt.Errorf("failed to generate validation webhook config: %v", err)
+	}
+	manifests = append(manifests, vwc)
+
+	mwc, err := genMutatingWebhookConfig(o)
+	if err != nil {
+		return fmt.Errorf("failed to generate mutating webhook config: %v", err)
+	}
+	manifests = append(manifests, mwc)
 
 	fmt.Println(strings.Join(manifests, "\n---\n"))
 
