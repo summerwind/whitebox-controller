@@ -38,12 +38,6 @@ func TestConfigValidate(t *testing.T) {
 	c.Webhook.Port = 0
 	err = c.Validate()
 	Expect(err).To(HaveOccurred())
-
-	// Invalid metrics
-	c = newTestConfig()
-	c.Metrics.Port = 0
-	err = c.Validate()
-	Expect(err).To(HaveOccurred())
 }
 
 func TestResourceConfigValidate(t *testing.T) {
@@ -516,10 +510,6 @@ func newTestConfig() *Config {
 				CertFile: "server.pem",
 				KeyFile:  "server-key.pem",
 			},
-		},
-		Metrics: &ServerConfig{
-			Host: "127.0.0.1",
-			Port: 91438,
 		},
 	}
 }

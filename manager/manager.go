@@ -17,12 +17,7 @@ func New(c *config.Config, kc *rest.Config) (manager.Manager, error) {
 		return nil, fmt.Errorf("invalid configuration: %v", err)
 	}
 
-	opts := manager.Options{}
-	if c.Metrics != nil {
-		opts.MetricsBindAddress = fmt.Sprintf("%s:%d", c.Metrics.Host, c.Metrics.Port)
-	}
-
-	mgr, err := manager.New(kc, opts)
+	mgr, err := manager.New(kc, manager.Options{})
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,6 @@ type Config struct {
 	Name      string            `json:"name,omitempty"`
 	Resources []*ResourceConfig `json:"resources"`
 	Webhook   *ServerConfig     `json:"webhook,omitempty"`
-	Metrics   *ServerConfig     `json:"metrics,omitempty"`
 }
 
 func LoadFile(p string) (*Config, error) {
@@ -50,13 +49,6 @@ func (c *Config) Validate() error {
 		err := c.Webhook.Validate()
 		if err != nil {
 			return fmt.Errorf("webhook: %v", err)
-		}
-	}
-
-	if c.Metrics != nil {
-		err := c.Metrics.Validate()
-		if err != nil {
-			return fmt.Errorf("metrics: %v", err)
 		}
 	}
 
