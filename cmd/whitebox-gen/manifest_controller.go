@@ -120,6 +120,7 @@ spec:
           mountPath: /etc/tls
         ports:
         - containerPort: 443
+        - containerPort: 8080
       volumes:
       - name: certificates
         secret:
