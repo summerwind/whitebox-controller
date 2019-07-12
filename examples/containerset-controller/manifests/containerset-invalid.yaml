@@ -1,4 +1,4 @@
-apiVersion: whitebox.summerwind.github.io/v1alpha1
+apiVersion: whitebox.summerwind.dev/v1alpha1
 kind: ContainerSet
 metadata:
   name: containerset-example-invalid

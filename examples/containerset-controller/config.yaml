@@ -1,9 +1,7 @@
-controllers:
-- name: containerset-controller
-  resource:
-    group: whitebox.summerwind.github.io
-    version: v1alpha1
-    kind: ContainerSet
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
   dependents:
   - group: apps
     version: v1
@@ -13,26 +11,20 @@ controllers:
       command: /bin/reconciler
       timeout: 60s
       debug: true
-  syncer:
-    interval: 30m
+  validator:
+    exec:
+      command: /bin/validator
+      timeout: 60s
+      debug: true
+  mutator:
+    exec:
+      command: /bin/mutator
+      timeout: 60s
+      debug: true
+  resyncPeriod: 30m
 
 webhook:
   port: 443
   tls:
-    certFile: /etc/tls/server.pem
-    keyFile: /etc/tls/server-key.pem
-  handlers:
-  - resource:
-      group: whitebox.summerwind.github.io
-      version: v1alpha1
-      kind: ContainerSet
-    validator:
-      exec:
-        command: /bin/validator
-        timeout: 60s
-        debug: true
-    mutator:
-      exec:
-        command: /bin/mutator
-        timeout: 60s
-        debug: true
+    certFile: /etc/tls/tls.crt
+    keyFile: /etc/tls/tls.key
