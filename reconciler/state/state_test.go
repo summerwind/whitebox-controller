@@ -81,17 +81,13 @@ func TestDiff(t *testing.T) {
 	created, updated, deleted := s.Diff(ns)
 
 	Expect(len(created)).To(Equal(2))
-	Expect(created[0].GetName()).To(Equal("a3"))
-	Expect(created[1].GetName()).To(Equal("b3"))
+	Expect([]string{created[0].GetName(), created[1].GetName()}).To(ConsistOf("a3", "b3"))
 
 	Expect(len(updated)).To(Equal(3))
-	Expect(updated[0].GetName()).To(Equal("test"))
-	Expect(updated[1].GetName()).To(Equal("a1"))
-	Expect(updated[2].GetName()).To(Equal("b1"))
+	Expect([]string{updated[0].GetName(), updated[1].GetName(), updated[2].GetName()}).To(ConsistOf("test", "a1", "b1"))
 
 	Expect(len(deleted)).To(Equal(2))
-	Expect(deleted[0].GetName()).To(Equal("a2"))
-	Expect(deleted[1].GetName()).To(Equal("b2"))
+	Expect([]string{deleted[0].GetName(), deleted[1].GetName()}).To(ConsistOf("a2", "b2"))
 }
 
 func TestPack(t *testing.T) {
