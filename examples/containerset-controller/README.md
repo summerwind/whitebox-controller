@@ -2,13 +2,13 @@
 
 containerset-controller is an example controller that watches ContainerSet resource and creates Deployment resource.
 
-This controller consists of multiple python scripts:
+This controller consists of three python scripts:
 
 - `reconciler.py`: The script that reconcile resource state.
 - `validator.py`: The script that validate created or updated resource via Admission Webhook.
 - `mutator.py`: The script that defaulting a resource via Admission Webhook.
 
-These scripts are assigned to the controller in the configuration file. See `config.yaml` for details.
+These scripts are assigned to the controller in the configuration file. See `config.yaml` for more details.
 
 ## Build
 
@@ -19,16 +19,6 @@ $ docker build -t containerset-controller:latest .
 ## Deploy
 
 ```
-# Install CRD for ContainerSet resource.
-$ kubectl apply -f manifests/crd.yaml
-
-# Install webhook configurations for Admission Webhook.
-$ kubectl apply -f manifests/webhook.yaml
-
-# Install secrets for containerset-controller.
-$ kubectl apply -f manifests/secret.yaml
-
-# Install containerset-controller.
 $ kubectl apply -f manifests/controller.yaml
 ```
 
@@ -38,7 +28,7 @@ Create a ContainerSet resource.
 
 ```
 $ kubectl apply -f manifests/containerset.yaml
-containerset.whitebox.summerwind.github.io "containerset-example" created
+containerset.whitebox.summerwind.dev "containerset-example" created
 ```
 
 Verify that the ContainerSet resource has been created.
