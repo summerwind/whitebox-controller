@@ -19,6 +19,10 @@ func genCRD(o *Option) ([]string, error) {
 	}
 
 	for _, res := range o.Config.Resources {
+		if !strings.Contains(res.Group, ".") || strings.HasSuffix(res.Group, ".k8s.io") {
+			continue
+		}
+
 		buf := bytes.NewBuffer([]byte{})
 		err = tmpl.Execute(buf, res)
 		if err != nil {
