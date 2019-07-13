@@ -1,25 +1,24 @@
 # hello-controller (Golang implementation)
 
-This is an golang implementation of hello-controller. This controller demonstrates how to use whitebox-controller as golang library.
+This is an golang implementation of hello-controller intended to demonstrate how to use whitebox-controller as golang library.
+
+This controller reconciles Hello resource. When create a Hello resource, this controller outputs the value message field and update status of the resource.
 
 ## Build
 
+Build a binary and a container image.
+
 ```
-$ go build -o hello-controller .
+$ CGO_ENABLED=0 GOOS=linux go build -o hello-controller .
+$ docker build -t summerwind/hello-controller:golang .
 ```
 
 ## Deploy
 
-Install CRD for Hello resource.
+Create controller resources that includes CRD, WebhookConfiguration, and Dployments.
 
 ```
-$ kubectl apply -f manifests/crd.yaml
-```
-
-Start hello-controller locally.
-
-```
-$ ./hello-controller
+$ kubectl apply -f manifests/controller.yaml
 ```
 
 ## Test
@@ -27,8 +26,8 @@ $ ./hello-controller
 Create a Hello resource.
 
 ```
-$ kubectl apply -f hello-controller/manifests/hello.yaml
-hello.whitebox.summerwind.github.io/hello created
+$ kubectl apply -f manifests/hello.yaml
+hello.whitebox.summerwind.dev/hello created
 ```
 
 Verify that the Hello resource has been created.
@@ -42,5 +41,8 @@ hello   10s
 hello-controller outputs the following log:
 
 ```
-2019/06/09 15:09:08 message: Hello World
+$ kubectl logs -n kube-system hello-controller-b85467859-fk8s5
+...
+2019/07/13 11:09:08 message: Hello World
+...
 ```
