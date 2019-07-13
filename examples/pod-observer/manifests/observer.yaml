@@ -12,7 +12,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pod
+  - pods
   verbs:
   - get
   - list
@@ -49,9 +49,5 @@ spec:
       containers:
       - name: pod-observer
         image: summerwind/pod-observer:latest
-        imagePullPolicy: Always
-        resources:
-          requests:
-            cpu: 100m
-            memory: 20Mi
+        imagePullPolicy: IfNotPresent
       serviceAccountName: pod-observer

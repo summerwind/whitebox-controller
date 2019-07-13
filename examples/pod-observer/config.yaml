@@ -1,9 +1,7 @@
-controllers:
-- name: pod-observer
-  resource:
-    group: ""
-    version: v1
-    kind: Pod
+resources:
+- group: ""
+  version: v1
+  kind: Pod
   reconciler:
     observe: true
     exec:

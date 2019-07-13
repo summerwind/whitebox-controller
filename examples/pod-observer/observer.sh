@@ -12,7 +12,8 @@ POD_PHASE=`echo "${STATE}" | jq -r '.object.status.phase'`
 MESSAGE="Pod ${POD_NAMESPACE}/${POD_NAME} is ${POD_PHASE}"
 
 # Write message to the log
-echo "${MESSAGE}" >> pod.log
+NOW=`date +%s`
+echo "${NOW}: ${MESSAGE}" >> pod.log
 
 # Write message to stder
 echo "${MESSAGE}" >&2
