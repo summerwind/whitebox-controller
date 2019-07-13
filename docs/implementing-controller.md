@@ -13,30 +13,26 @@ The following two tasks are required to implement Controller.
 
 *Resource* is a resource on Kubernetes for which you want to detect changes. Whitebox Controller executes reconciler when the resource is changed.
 
-*Resource* is specified in `.controllers[].resource` of the configuration file. The following setting is an example of detecting changes of *ContainerSet* resources.
+*Resource* is specified in `.resources[]` of the configuration file. The following setting is an example of detecting changes of *ContainerSet* resources.
 
 ```
-controllers:
-- name: containerset-controller
-  resource:
-    group: whitebox.summerwind.github.io
-    version: v1alpha1
-    kind: ContainerSet
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
 ```
 
 ### Dependent Resources
 
 If reconciler creates another type of resource based on the specified *Resource*, you need to specify the type of resource to be created as *Dependent Resources*.
 
-*Dependentr Resources* are specified in `.controllers[].dependents` in the configuration file. Multiple types of dependent resource can be specified. The following setting is an example when Controller creates a *Deployment* resource based on *ContainerSet* resource.
+*Dependentr Resources* are specified in `.resources[].dependents` in the configuration file. Multiple types of dependent resource can be specified. The following setting is an example when Controller creates a *Deployment* resource based on *ContainerSet* resource.
 
 ```
-controllers:
-- name: containerset-controller
-  resource:
-    group: whitebox.summerwind.github.io
-    version: v1alpha1
-    kind: ContainerSet
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
   dependents:
   - group: apps
     version: v1
@@ -47,20 +43,18 @@ controllers:
 
 If you want to refer to other related resources when processing the specified *Resource*, you need to specify the resource type as *Reference Resources*.
 
-For example, if the *Resource*'s `.spec.config.configMapRef` value indicates a *ConfigMap* name, you may need to get the *ConfigMap* when the reconciler processes the *Resource*. In such a case, the content of ConfigMap is passed to Reconciler by specifying *ConfigMap* in *Reference Resources*.
+For example, if the *Resource*'s `.spec.configMapRef` value indicates a *ConfigMap* name, you may need to get the *ConfigMap* when the reconciler processes the *Resource*. In such a case, the content of ConfigMap is passed to Reconciler by specifying *ConfigMap* in *Reference Resources*.
 
 ```
-controllers:
-- name: containerset-controller
-  resource:
-    group: whitebox.summerwind.github.io
-    version: v1alpha1
-    kind: ContainerSet
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
   references:
   - group: ""
     version: v1
     kind: ConfigMap
-    nameFieldPath: ".spec.config.configMapRef"
+    nameFieldPath: ".spec.configMapRef"
 ```
 
 ## Configuring Reconciler
@@ -74,8 +68,10 @@ controllers:
 The following example uses *Exec Handler* to specify a shell script called `reconciler.sh`.
 
 ```
-controllers:
-- name: containerset-controller
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
   reconciler:
     exec:
       command: ./reconciler.sh
@@ -88,8 +84,10 @@ controllers:
 The following example uses *HTTP Handler* to specify the URL.
 
 ```
-controllers:
-- name: containerset-controller
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
   reconciler:
     http:
       url: "http://127.0.0.1/reconciler"
@@ -119,7 +117,7 @@ The example of the data is as follows.
 ```
 {
   "object": {
-    "apiVersion": "whitebox.summerwind.github.io/v1alpha1",
+    "apiVersion": "whitebox.summerwind.dev/v1alpha1",
     "kind": "ContainerSet",
     "metadata": {
       "name": "example",
@@ -164,21 +162,28 @@ The example of the data is as follows.
 If you enable the `observe` option as follows, Whitebox Controller does not expect *Reconciler* to output the next state of the resource. This option is useful if you want to detect only changes in resources and execute processing.
 
 ```
-controllers:
-- name: containerset-controller
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
   reconciler:
     observe: true
     exec:
       command: ./observer.sh
 ```
 
-### Syncer
+### Resync period
 
-If you need *Reconciler* to periodically check the state of all resources, specify an interval for *Syncer* as follows. In this example, *Reconciler* will be run every 10 minutes as if all resources have changed.
+If you need *Reconciler* to periodically check the state of all resources, specify an interval to the `resyncPeriod` as follows. In this example, *Reconciler* will be run every 10 minutes as if all resources have changed.
 
 ```
-controllers:
-- name: containerset-controller
-  syncer:
-    interval: 10m
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: ContainerSet
+  reconciler:
+    observe: true
+    exec:
+      command: ./reconciler.sh
+  resyncPeriod: 10m
 ```

@@ -43,12 +43,10 @@ Create a configuration file as follows. This file defines the configuration to w
 $ vim config.yaml
 ```
 ```
-controllers:
-- name: hello-controller
-  resource:
-    group: whitebox.summerwind.github.io
-    version: v1alpha1
-    kind: Hello
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: Hello
   reconciler:
     exec:
       command: ./reconciler.sh
@@ -66,9 +64,9 @@ $ vim crd.yaml
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: hello.whitebox.summerwind.github.io
+  name: hello.whitebox.summerwind.dev
 spec:
-  group: whitebox.summerwind.github.io
+  group: whitebox.summerwind.dev
   versions:
   - name: v1alpha1
     served: true
@@ -84,7 +82,7 @@ Once you have a manifest file, apply it to Kubernetes.
 
 ```
 $ kubectl apply -f crd.yaml
-customresourcedefinition.apiextensions.k8s.io "hello.whitebox.summerwind.github.io" created
+customresourcedefinition.apiextensions.k8s.io "hello.whitebox.summerwind.dev" created
 ```
 
 Now that 'Hello' custom resource is available. Let's create a 'Hello' resource on Kubernetes.
@@ -93,7 +91,7 @@ Now that 'Hello' custom resource is available. Let's create a 'Hello' resource o
 $ vim hello.yaml
 ```
 ```
-apiVersion: whitebox.summerwind.github.io/v1alpha1
+apiVersion: whitebox.summerwind.dev/v1alpha1
 kind: Hello
 metadata:
   name: hello
@@ -102,7 +100,7 @@ spec:
 ```
 ```
 $ kubectl apply -f hello.yaml
-hello.whitebox.summerwind.github.io "hello" created
+hello.whitebox.summerwind.dev "hello" created
 ```
 
 You can see that the resource has been created on Kubernetes.
@@ -122,18 +120,18 @@ Before implementing your reconciler, let's understand the inputs and outputs. Wh
 ```
 {
   "object": {
-    "apiVersion": "whitebox.summerwind.github.io/v1alpha1",
+    "apiVersion": "whitebox.summerwind.dev/v1alpha1",
     "kind": "Hello",
     "metadata": {
       "annotations": {
-        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"whitebox.summerwind.github.io/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"
+        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"whitebox.summerwind.dev/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"
       },
       "creationTimestamp": "2019-04-01T04:02:01Z",
       "generation": 1,
       "name": "hello",
       "namespace": "default",
       "resourceVersion": "14412715",
-      "selfLink": "/apis/whitebox.summerwind.github.io/v1alpha1/namespaces/default/hello/hello",
+      "selfLink": "/apis/whitebox.summerwind.dev/v1alpha1/namespaces/default/hello/hello",
       "uid": "e6f446eb-5432-11e9-afad-42010a8c01f3"
     },
     "spec": {
@@ -148,18 +146,18 @@ The command should read the resource state from stdin, modify its state if neces
 ```
 {
   "object": {
-    "apiVersion": "whitebox.summerwind.github.io/v1alpha1",
+    "apiVersion": "whitebox.summerwind.dev/v1alpha1",
     "kind": "Hello",
     "metadata": {
       "annotations": {
-        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"whitebox.summerwind.github.io/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"
+        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"whitebox.summerwind.dev/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"
       },
       "creationTimestamp": "2019-04-01T04:02:01Z",
       "generation": 1,
       "name": "hello",
       "namespace": "default",
       "resourceVersion": "14412715",
-      "selfLink": "/apis/whitebox.summerwind.github.io/v1alpha1/namespaces/default/hello/hello",
+      "selfLink": "/apis/whitebox.summerwind.dev/v1alpha1/namespaces/default/hello/hello",
       "uid": "e6f446eb-5432-11e9-afad-42010a8c01f3"
     },
     "spec": {
@@ -183,14 +181,22 @@ $ vim reconciler.sh
 # Read current state from stdio.
 STATE=`cat -`
 
-# Write message to stder
-echo "${STATE}" | jq -r '.object.spec.message' >&2
+# Read phase from object.
+PHASE=`echo "${STATE}" | jq -r '.object.status.phase'`
 
-# Set `.status.phase` field to the resource
-NEW_STATE=`echo "${STATE}" | jq -r '.object.status.phase = "completed"'`
+# Reconcile object.
+if [ "${PHASE}" != "completed" ]; then
+  # Write message to stder.
+  NOW=`date "+%Y/%m/%d %H:%M:%S"`
+  echo -n "${NOW} message: " >&2
+  echo "${STATE}" | jq -r '.object.spec.message' >&2
+
+  # Set `.status.phase` field to the resource.
+  STATE=`echo "${STATE}" | jq -r '.object.status.phase = "completed"'`
+fi
 
 # Write new state to stdio.
-echo "${NEW_STATE}"
+echo "${STATE}"
 ```
 
 Do not forget to give execute permission to `reconciler.sh`.
@@ -205,25 +211,25 @@ Now that the reconciler has been implemented, run the `whitebox-controller` comm
 
 ```
 $ whitebox-controller
-{"level":"info","ts":1554099388.813269,"logger":"controller-runtime.controller","msg":"Starting EventSource","controller":"hello-controller","source":"kind source: whitebox.summerwind.github.io/v1alpha1, Kind=Hello"}
+{"level":"info","ts":1554099388.813269,"logger":"controller-runtime.controller","msg":"Starting EventSource","controller":"hello-controller","source":"kind source: whitebox.summerwind.dev/v1alpha1, Kind=Hello"}
 {"level":"info","ts":1554099388.915076,"logger":"controller-runtime.controller","msg":"Starting Controller","controller":"hello-controller"}
 {"level":"info","ts":1554099389.02052,"logger":"controller-runtime.controller","msg":"Starting workers","controller":"hello-controller","worker count":1}
-[exec] stdin: {"resource":{"apiVersion":"whitebox.summerwind.github.io/v1alpha1","kind":"Hello","metadata":{"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"whitebox.summerwind.github.io/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"},"creationTimestamp":"2019-04-01T05:58:29Z","generation":1,"name":"hello","namespace":"default","resourceVersion":"14427301","selfLink":"/apis/whitebox.summerwind.github.io/v1alpha1/namespaces/default/hello/hello","uid":"2c2673ab-5443-11e9-afad-42010a8c01f3"},"spec":{"message":"Hello World"},"status":{"phase":"completed"}},"dependents":[],"references":[],"events":[]}
-[exec] stderr: Hello World
+[exec] stdin: {"resource":{"apiVersion":"whitebox.summerwind.dev/v1alpha1","kind":"Hello","metadata":{"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"whitebox.summerwind.dev/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"},"creationTimestamp":"2019-04-01T05:58:29Z","generation":1,"name":"hello","namespace":"default","resourceVersion":"14427301","selfLink":"/apis/whitebox.summerwind.dev/v1alpha1/namespaces/default/hello/hello","uid":"2c2673ab-5443-11e9-afad-42010a8c01f3"},"spec":{"message":"Hello World"},"status":{"phase":"completed"}},"dependents":[],"references":[],"events":[]}
+[exec] stderr: 2019/04/01 05:58:30 message: Hello World
 [exec] stdout: {
   "object": {
-    "apiVersion": "whitebox.summerwind.github.io/v1alpha1",
+    "apiVersion": "whitebox.summerwind.dev/v1alpha1",
     "kind": "Hello",
     "metadata": {
       "annotations": {
-        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"whitebox.summerwind.github.io/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"
+        "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"whitebox.summerwind.dev/v1alpha1\",\"kind\":\"Hello\",\"metadata\":{\"annotations\":{},\"name\":\"hello\",\"namespace\":\"default\"},\"spec\":{\"message\":\"Hello World\"}}\n"
       },
       "creationTimestamp": "2019-04-01T05:58:29Z",
       "generation": 1,
       "name": "hello",
       "namespace": "default",
       "resourceVersion": "14427301",
-      "selfLink": "/apis/whitebox.summerwind.github.io/v1alpha1/namespaces/default/hello/hello",
+      "selfLink": "/apis/whitebox.summerwind.dev/v1alpha1/namespaces/default/hello/hello",
       "uid": "2c2673ab-5443-11e9-afad-42010a8c01f3"
     },
     "spec": {
@@ -248,14 +254,14 @@ $ kubectl describe hello hello
 Name:         hello
 Namespace:    default
 Labels:       <none>
-Annotations:  kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"whitebox.summerwind.github.io/v1alpha1","kind":"Hello","metadata":{"annotations":{},"name":"hello","namespace":"default"},"spec":{"messa...
-API Version:  whitebox.summerwind.github.io/v1alpha1
+Annotations:  kubectl.kubernetes.io/last-applied-configuration={"apiVersion":"whitebox.summerwind.dev/v1alpha1","kind":"Hello","metadata":{"annotations":{},"name":"hello","namespace":"default"},"spec":{"messa...
+API Version:  whitebox.summerwind.dev/v1alpha1
 Kind:         Hello
 Metadata:
   Creation Timestamp:  2019-04-01T05:58:29Z
   Generation:          1
   Resource Version:    14427301
-  Self Link:           /apis/whitebox.summerwind.github.io/v1alpha1/namespaces/default/hello/hello
+  Self Link:           /apis/whitebox.summerwind.dev/v1alpha1/namespaces/default/hello/hello
   UID:                 2c2673ab-5443-11e9-afad-42010a8c01f33
 Spec:
   Message:  Hello World
@@ -324,7 +330,7 @@ metadata:
   name: hello-controller
 rules:
 - apiGroups:
-  - whitebox.summerwind.github.io
+  - whitebox.summerwind.dev
   resources:
   - hello
   verbs:
