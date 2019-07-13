@@ -1,0 +1,8 @@
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: Hello
+  reconciler:
+    exec:
+      command: ./reconciler.sh
+      debug: true

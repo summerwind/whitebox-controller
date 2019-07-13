@@ -1,0 +1,149 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: hello.whitebox.summerwind.dev
+spec:
+  group: whitebox.summerwind.dev
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+  names:
+    kind: Hello
+    plural: hello
+    singular: hello
+  scope: Namespaced
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Issuer
+metadata:
+  name: hello-controller-selfsign
+  namespace: kube-system
+spec:
+  selfSigned: {}
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: hello-controller-webhook-ca
+  namespace: kube-system
+spec:
+  secretName: hello-controller-webhook-ca
+  issuerRef:
+    name: hello-controller-selfsign
+  commonName: "hello-controller webhook CA"
+  duration: 43800h
+  isCA: true
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Issuer
+metadata:
+  name: hello-controller-webhook-ca
+  namespace: kube-system
+spec:
+  ca:
+    secretName: hello-controller-webhook-ca
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: hello-controller
+  namespace: kube-system
+spec:
+  secretName: hello-controller
+  issuerRef:
+    name: hello-controller-webhook-ca
+  dnsNames:
+  - hello-controller
+  - hello-controller.kube-system
+  - hello-controller.kube-system.svc
+  duration: 8760h
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hello-controller
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hello-controller
+rules:
+- apiGroups:
+  - whitebox.summerwind.dev
+  resources:
+  - hello
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hello-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: hello-controller
+subjects:
+- kind: ServiceAccount
+  name: hello-controller
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-controller
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-controller
+  template:
+    metadata:
+      labels:
+        app: hello-controller
+    spec:
+      containers:
+      - name: hello-controller
+        image: summerwind/hello-controller:exec
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: certificates
+          mountPath: /etc/tls
+        ports:
+        - containerPort: 443
+        - containerPort: 8080
+      volumes:
+      - name: certificates
+        secret:
+          secretName: hello-controller
+      serviceAccountName: hello-controller
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-controller
+  namespace: kube-system
+spec:
+  selector:
+    app: hello-controller
+  ports:
+  - protocol: TCP
+    port: 443
+    targetPort: 443
