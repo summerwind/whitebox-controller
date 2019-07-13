@@ -9,10 +9,13 @@ import (
 )
 
 type Option struct {
-	Name      string
-	Namespace string
-	Image     string
-	Config    *config.Config
+	Name              string
+	Namespace         string
+	Image             string
+	Config            *config.Config
+	ValidationWebhook bool
+	MutatingWebhook   bool
+	InjectionWebhook  bool
 }
 
 func (o *Option) Validate() error {
@@ -47,15 +50,30 @@ func manifest(args []string) error {
 	}
 
 	o := &Option{
-		Name:      *name,
-		Namespace: *namespace,
-		Image:     *image,
-		Config:    c,
+		Name:              *name,
+		Namespace:         *namespace,
+		Image:             *image,
+		Config:            c,
+		ValidationWebhook: false,
+		MutatingWebhook:   false,
+		InjectionWebhook:  false,
 	}
 
 	err = o.Validate()
 	if err != nil {
 		return err
+	}
+
+	for _, res := range c.Resources {
+		if res.Validator != nil {
+			o.ValidationWebhook = true
+		}
+		if res.Mutator != nil {
+			o.MutatingWebhook = true
+		}
+		if res.Injector != nil {
+			o.InjectionWebhook = true
+		}
 	}
 
 	manifests := []string{}
@@ -78,17 +96,21 @@ func manifest(args []string) error {
 	}
 	manifests = append(manifests, controller)
 
-	vwc, err := genValidationWebhookConfig(o)
-	if err != nil {
-		return fmt.Errorf("failed to generate validation webhook config: %v", err)
+	if o.ValidationWebhook {
+		vwc, err := genValidationWebhookConfig(o)
+		if err != nil {
+			return fmt.Errorf("failed to generate validation webhook config: %v", err)
+		}
+		manifests = append(manifests, vwc)
 	}
-	manifests = append(manifests, vwc)
 
-	mwc, err := genMutatingWebhookConfig(o)
-	if err != nil {
-		return fmt.Errorf("failed to generate mutating webhook config: %v", err)
+	if o.MutatingWebhook {
+		mwc, err := genMutatingWebhookConfig(o)
+		if err != nil {
+			return fmt.Errorf("failed to generate mutating webhook config: %v", err)
+		}
+		manifests = append(manifests, mwc)
 	}
-	manifests = append(manifests, mwc)
 
 	fmt.Println(strings.Join(manifests, "\n---\n"))
 
