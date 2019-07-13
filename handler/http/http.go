@@ -92,6 +92,10 @@ func (h *HTTPHandler) HandleState(s *state.State) error {
 		return err
 	}
 
+	if len(out) == 0 {
+		return nil
+	}
+
 	err = json.Unmarshal(out, s)
 	if err != nil {
 		return err
