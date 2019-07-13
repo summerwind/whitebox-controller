@@ -55,8 +55,8 @@ spec:
     name: containerset-controller-webhook-ca
   dnsNames:
   - containerset-controller
-  - containerset-controller.default
-  - containerset-controller.default.svc
+  - containerset-controller.kube-system
+  - containerset-controller.kube-system.svc
   duration: 8760h
 ---
 apiVersion: v1
@@ -165,7 +165,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: containerset-controller
   annotations:
-    certmanager.k8s.io/inject-ca-from: default/containerset-controller
+    certmanager.k8s.io/inject-ca-from: kube-system/containerset-controller
 webhooks:
 - name: containerset.whitebox.summerwind.dev
   rules:
@@ -191,7 +191,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: containerset-controller
   annotations:
-    certmanager.k8s.io/inject-ca-from: default/containerset-controller
+    certmanager.k8s.io/inject-ca-from: kube-system/containerset-controller
 webhooks:
 - name: containerset.whitebox.summerwind.dev
   rules:
