@@ -1,0 +1,163 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: issue.whitebox.summerwind.dev
+spec:
+  group: whitebox.summerwind.dev
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+  names:
+    kind: Issue
+    plural: issue
+    singular: issue
+  scope: Namespaced
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Issuer
+metadata:
+  name: issue-injector-selfsign
+  namespace: kube-system
+spec:
+  selfSigned: {}
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: issue-injector-webhook-ca
+  namespace: kube-system
+spec:
+  secretName: issue-injector-webhook-ca
+  issuerRef:
+    name: issue-injector-selfsign
+  commonName: "issue-injector webhook CA"
+  duration: 43800h
+  isCA: true
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Issuer
+metadata:
+  name: issue-injector-webhook-ca
+  namespace: kube-system
+spec:
+  ca:
+    secretName: issue-injector-webhook-ca
+---
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Certificate
+metadata:
+  name: issue-injector
+  namespace: kube-system
+spec:
+  secretName: issue-injector
+  issuerRef:
+    name: issue-injector-webhook-ca
+  dnsNames:
+  - issue-injector
+  - issue-injector.kube-system
+  - issue-injector.kube-system.svc
+  duration: 8760h
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: issue-injector
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: issue-injector
+rules:
+- apiGroups:
+  - whitebox.summerwind.dev
+  resources:
+  - issue
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: issue-injector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: issue-injector
+subjects:
+- kind: ServiceAccount
+  name: issue-injector
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: issue-injector
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: issue-injector
+  template:
+    metadata:
+      labels:
+        app: issue-injector
+    spec:
+      containers:
+      - name: issue-injector
+        image: summerwind/issue-injector:latest
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: certificates
+          mountPath: /etc/tls
+        - name: injector
+          mountPath: /etc/injector
+        ports:
+        - containerPort: 443
+        - containerPort: 8080
+      volumes:
+      - name: certificates
+        secret:
+          secretName: issue-injector
+      - name: injector
+        secret:
+          secretName: issue-injector-key
+      serviceAccountName: issue-injector
+      terminationGracePeriodSeconds: 60
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: issue-injector
+  namespace: kube-system
+spec:
+  selector:
+    app: issue-injector
+  ports:
+  - protocol: TCP
+    port: 443
+    targetPort: 443
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: issue-injector-key
+  namespace: kube-system
+type: Opaque
+data:
+  verify.key: LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUExTnRBMnlsWnB0eis5cmNsNTc1eApuaDQ3UVZPK0ZnOWRMdVdOOHZBbko2QjViZUtoZ2xpZC9oM2IwSEE3ZVdEWlFGRkhDYXVvalV4ZEtUZGprSnkxCkVjZU9tUHIwQ1lqRFk2WFBpQ0ZHOXBGRWVYYTBvckZoa2V6cHYyVndVbVdTTHFjbXVoZHZ5Si9WTWZwV3NIMWEKc3lBQ0FEZ1J1amkwTWc4MmM4OUw2NEpvejNtYmhremJFaGI4ZW5KS0swVFEwd0Vyck40N0FqbnB4d0c0YWJ6Mgp0aER0QlJUYXhNTXZoQmZsRmpMbHd6QVFLdHl3Z05QZnZtbExaYk5CTTI3YnExZGZDRXdWbGh4MVF0LzNNRVIrCkd4U3NreFFDUmplUzJaTXEvOW1xZFp1TkE0Qmo2VEhOZWtFMGFIajU2cTVLR2h1dStaY3VRazYzenNobEFhRWYKdFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==

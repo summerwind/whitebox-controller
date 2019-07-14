@@ -1,0 +1,19 @@
+resources:
+- group: whitebox.summerwind.dev
+  version: v1alpha1
+  kind: Issue
+  reconciler:
+    exec:
+      command: ./reconciler.py
+      debug: true
+  injector:
+    exec:
+      command: ./injector.py
+      debug: true
+    verifyKeyFile: /etc/injector/verify.key
+
+webhook:
+  port: 443
+  tls:
+    certFile: /etc/tls/tls.crt
+    keyFile: /etc/tls/tls.key
