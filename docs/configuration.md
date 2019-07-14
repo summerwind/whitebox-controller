@@ -87,6 +87,8 @@ resources:
     exec:
       command: "/bin/controller"
       args: ["inject"]
+    # Required: Path of PEM encoded verification key file.
+    verifyKeyFile: /etc/injector/verify.key
 ```
 
 ## Webhook configuration
@@ -106,8 +108,8 @@ webhook:
   # Required: Path of certificate file and private key file for TLS.
   # Both of 'certFile' and 'keyFile' must be specified.
   tls:
-    certFile: tls//server.pem
-    keyFile: tls/server-key.pem
+    certFile: /etc/tls/tls.crt
+    keyFile: /etc/tls/tls.key
 ```
 
 ## Group/Version/Kind
