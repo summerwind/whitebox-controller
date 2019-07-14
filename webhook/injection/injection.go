@@ -18,7 +18,7 @@ type Request struct {
 }
 
 type Response struct {
-	Resource *unstructured.Unstructured `json:"resource"`
+	Object *unstructured.Unstructured `json:"object"`
 }
 
 type HandlerFunc func(context.Context, Request) (Response, error)
@@ -89,17 +89,17 @@ func (wh *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if res.Resource == nil {
+	if res.Object == nil {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	res.Resource.SetNamespace(namespace)
+	res.Object.SetNamespace(namespace)
 
-	err = wh.Create(context.TODO(), res.Resource)
+	err = wh.Create(context.TODO(), res.Object)
 	if err != nil {
 		msg := "Failed to create a resource"
-		wh.log.Error(err, msg, "namespace", res.Resource.GetNamespace(), "name", res.Resource.GetName())
+		wh.log.Error(err, msg, "namespace", res.Object.GetNamespace(), "name", res.Object.GetName())
 		http.Error(w, msg, 500)
 		return
 	}
