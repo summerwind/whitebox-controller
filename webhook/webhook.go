@@ -40,7 +40,7 @@ func NewServer(c *config.ServerConfig, mgr manager.Manager) (*Server, error) {
 	mux := http.NewServeMux()
 
 	if c == nil {
-		return nil, fmt.Errorf("configuration must be specified")
+		return nil, fmt.Errorf("webhook configuration must be specified")
 	}
 	if c.TLS == nil {
 		return nil, fmt.Errorf("TLS configuration must be specified")
