@@ -80,7 +80,6 @@ func (r *Reconciler) InjectClient(c client.Client) error {
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	var (
 		err       error
-		requeued  bool
 		finalized bool
 	)
 
@@ -139,7 +138,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	r.setOwnerReference(ns)
 
 	if finalized {
-		if !requeued {
+		if !ns.Requeue && ns.RequeueAfter == 0 {
 			r.unsetFinalizer(ns.Object)
 		}
 	} else if r.finalizer != nil {
