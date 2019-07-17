@@ -10,12 +10,15 @@ import (
 	"os/exec"
 	"time"
 
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/summerwind/whitebox-controller/config"
 	"github.com/summerwind/whitebox-controller/reconciler/state"
 	"github.com/summerwind/whitebox-controller/webhook/injection"
 )
+
+var log = logf.Log.WithName("handler")
 
 type ExecHandler struct {
 	command    string
@@ -146,12 +149,12 @@ func (h *ExecHandler) run(buf []byte) ([]byte, error) {
 	}
 
 	if h.debug {
-		log("stdin", string(buf))
+		log.Info("Sending state", "state", string(buf))
+	}
 
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			log("stderr", scanner.Text())
-		}
+	scanner := bufio.NewScanner(stderr)
+	for scanner.Scan() {
+		log.Info(scanner.Text())
 	}
 
 	err = cmd.Wait()
@@ -160,12 +163,8 @@ func (h *ExecHandler) run(buf []byte) ([]byte, error) {
 	}
 
 	if h.debug {
-		log("stdout", stdout.String())
+		log.Info("Received new state", "state", string(stdout.Bytes()), "code", cmd.ProcessState.ExitCode())
 	}
 
 	return stdout.Bytes(), nil
-}
-
-func log(stream, msg string) {
-	fmt.Fprintf(os.Stderr, "[exec] %s: %s\n", stream, msg)
 }
