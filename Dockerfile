@@ -1,8 +1,5 @@
 FROM golang:1.12 as builder
 
-ARG VERSION
-ARG COMMIT
-
 ENV GO111MODULE=on \
     GOPROXY=https://proxy.golang.org
 
@@ -17,6 +14,9 @@ RUN go mod download
 
 COPY . /workspace
 WORKDIR /workspace
+
+ARG VERSION
+ARG COMMIT
 
 RUN go vet ./...
 RUN go test -v ./...
