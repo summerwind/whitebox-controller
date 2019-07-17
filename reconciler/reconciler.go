@@ -89,6 +89,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	namespace := req.Namespace
 	name := req.Name
+	log.Info("Reconcile a resource", "namespace", namespace, "name", name)
 
 	instance := &unstructured.Unstructured{}
 	instance.SetGroupVersionKind(r.config.GroupVersionKind)
