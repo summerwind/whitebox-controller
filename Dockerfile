@@ -1,4 +1,4 @@
-FROM golang:1.12 as builder
+FROM golang:1.12 AS build
 
 ENV GO111MODULE=on \
     GOPROXY=https://proxy.golang.org
@@ -25,8 +25,33 @@ RUN CGO_ENABLED=0 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=$
 
 ###################
 
+FROM build AS release
+
+ARG VERSION
+ARG COMMIT
+
+RUN mkdir release
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-controller \
+  && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-gen \
+  && tar zcf release/whitebox-controller-linux-amd64.tar.gz whitebox-controller whitebox-gen
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-controller \
+  && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-gen \
+  && tar zcf release/whitebox-controller-linux-arm64.tar.gz whitebox-controller whitebox-gen
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=arm go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-controller \
+  && CGO_ENABLED=0 GOOS=linux GOARCH=arm go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-gen \
+  && tar zcf release/whitebox-controller-linux-arm.tar.gz whitebox-controller whitebox-gen
+
+RUN CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-controller \
+  && CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.VERSION=${VERSION} -X main.COMMIT=${COMMIT}" ./cmd/whitebox-gen \
+  && tar zcf release/whitebox-controller-darwin-amd64.tar.gz whitebox-controller whitebox-gen
+
+###################
+
 FROM scratch
 
-COPY --from=builder /workspace/whitebox-* /bin/
+COPY --from=build /workspace/whitebox-* /bin/
 
 ENTRYPOINT ["/bin/whitebox-controller"]

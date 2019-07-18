@@ -21,22 +21,11 @@ tasks:
     cmds:
     - go tool cover -html=cover.out
   release:
-    deps: [test]
     cmds:
-    - mkdir release
-    - task: release-file
-      vars: {OS: darwin, ARCH: amd64}
-    - task: release-file
-      vars: {OS: linux, ARCH: amd64}
-    - task: release-file
-      vars: {OS: linux, ARCH: arm}
-    - task: release-file
-      vars: {OS: linux, ARCH: arm64}
-  release-file:
-    cmds:
-    - CGO_ENABLED=0 GOOS={{.OS}} GOARCH={{.ARCH}} go build {{.BUILD_FLAGS}} ./cmd/whitebox-controller
-    - CGO_ENABLED=0 GOOS={{.OS}} GOARCH={{.ARCH}} go build {{.BUILD_FLAGS}} ./cmd/whitebox-gen
-    - tar zcf release/{{.NAME}}-{{.OS}}-{{.ARCH}}.tar.gz whitebox-controller whitebox-gen
+    - docker build --build-arg VERSION={{.VERSION}} --build-arg COMMIT={{.COMMIT}} --target release -t summerwind/{{.NAME}}:release .
+    - docker create --name {{.NAME}}-release summerwind/{{.NAME}}:release
+    - docker cp {{.NAME}}-release:/workspace/release release
+    - docker rm {{.NAME}}-release
   github-release:
     deps: [release]
     cmds:
