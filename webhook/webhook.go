@@ -164,7 +164,11 @@ func wrap(h http.Handler) http.Handler {
 }
 
 func getBasePath(gvk schema.GroupVersionKind) string {
-	return fmt.Sprintf("/%s/%s/%s", gvk.Group, gvk.Version, strings.ToLower(gvk.Kind))
+	if gvk.Group == "" {
+		return fmt.Sprintf("/%s/%s", gvk.Version, strings.ToLower(gvk.Kind))
+	} else {
+		return fmt.Sprintf("/%s/%s/%s", gvk.Group, gvk.Version, strings.ToLower(gvk.Kind))
+	}
 }
 
 func newValidationHook(hc *config.HandlerConfig) (http.Handler, error) {
