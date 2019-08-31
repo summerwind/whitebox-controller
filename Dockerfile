@@ -9,7 +9,7 @@ RUN curl -L -o /tmp/download-binaries.sh https://raw.githubusercontent.com/kuber
   && /tmp/download-binaries.sh /usr/local/kubebuilder/bin
 
 WORKDIR /go/src/github.com/summerwind/whitebox-controller
-COPY go.mod go.sum .
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . /workspace
