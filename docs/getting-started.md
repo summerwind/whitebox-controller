@@ -170,7 +170,7 @@ The command should read the resource state from stdin, modify its state if neces
 }
 ```
 
-Now that you understand the input and output, let's implement `reconciler.sh`. Implement a reconcier that outputs the value of the `.spec.message` field to stderr and sets the valud `completed` to the `.status.phase` field.
+Now that you understand the input and output, let's implement `reconciler.sh`. Implement a reconciler that outputs the value of the `.spec.message` field to stderr and sets the value `completed` to the `.status.phase` field.
 
 ```
 $ vim reconciler.sh
