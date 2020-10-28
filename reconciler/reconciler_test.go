@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 	"strings"
 	"testing"
@@ -35,7 +36,7 @@ func TestMain(m *testing.M) {
 	var err error
 
 	env := &envtest.Environment{
-		CRDs: []*apiextensionsv1beta1.CustomResourceDefinition{newCRD("Test")},
+		CRDs: []runtime.Object{newCRD("Test")},
 	}
 
 	kconfig, err = env.Start()
@@ -714,7 +715,7 @@ func TestIsDeleting(t *testing.T) {
 	rc := newResourceConfig()
 	object := newObject(rc.GroupVersionKind, "test")
 	deleting := newObject(rc.GroupVersionKind, "test")
-	SetNestedField(deleting.Object, string(time.Now().Unix()), "metadata", "deletionTimestamp")
+	SetNestedField(deleting.Object, metav1.Time{time.Now()}.ToUnstructured(), "metadata", "deletionTimestamp")
 
 	Expect(isDeleting(object)).To(BeFalse())
 	Expect(isDeleting(deleting)).To(BeTrue())
