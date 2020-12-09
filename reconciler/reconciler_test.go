@@ -714,7 +714,7 @@ func TestIsDeleting(t *testing.T) {
 	rc := newResourceConfig()
 	object := newObject(rc.GroupVersionKind, "test")
 	deleting := newObject(rc.GroupVersionKind, "test")
-	SetNestedField(deleting.Object, string(time.Now().Unix()), "metadata", "deletionTimestamp")
+	SetNestedField(deleting.Object, fmt.Sprint(time.Now().Unix()), "metadata", "deletionTimestamp")
 
 	Expect(isDeleting(object)).To(BeFalse())
 	Expect(isDeleting(deleting)).To(BeTrue())
