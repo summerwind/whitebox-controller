@@ -290,12 +290,29 @@ func (r *Reconciler) getReferences(res *unstructured.Unstructured) (map[string][
 			continue
 		}
 
+		refNamespaces := []string{}
+        if len(ref.NamespaceFieldPath) > 0 {
+            refNss, err := getReferenceNames(res, ref.NamespaceFieldPath)
+		    if err != nil {
+			    return nil, fmt.Errorf("failed to get reference namespace list: %v", err)
+		    }
+            if len(refNss) != len(refNames) {
+			    return nil, fmt.Errorf("Reference name and namespace must match: %v", err)
+            }
+            refNamespaces = refNss
+        }
+
 		for i := range refNames {
 			refRes := &unstructured.Unstructured{}
 			refRes.SetGroupVersionKind(ref.GroupVersionKind)
 
+            refResNamespace := res.GetNamespace()
+            if len(refNamespaces) > 0 {
+                refResNamespace = refNamespaces[i]
+            }
+
 			nn := types.NamespacedName{
-				Namespace: res.GetNamespace(),
+				Namespace: refResNamespace,
 				Name:      refNames[i],
 			}
 			err = r.Get(context.TODO(), nn, refRes)
@@ -303,7 +320,7 @@ func (r *Reconciler) getReferences(res *unstructured.Unstructured) (map[string][
 				if apierrors.IsNotFound(err) {
 					continue
 				}
-				return nil, fmt.Errorf("failed to get a resource '%s/%s': %v", res.GetNamespace(), refNames[i], err)
+				return nil, fmt.Errorf("failed to get a resource '%s/%s': %v", refResNamespace, refNames[i], err)
 			}
 
 			refs[key] = append(refs[key], refRes)

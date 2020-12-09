@@ -149,6 +149,7 @@ func (c *DependentConfig) Validate() error {
 type ReferenceConfig struct {
 	schema.GroupVersionKind
 	NameFieldPath string `json:"nameFieldPath"`
+	NamespaceFieldPath string `json:"namespaceFieldPath,omitempty"`
 }
 
 func (c *ReferenceConfig) Validate() error {
